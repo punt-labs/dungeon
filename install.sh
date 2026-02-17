@@ -155,6 +155,20 @@ else
   fi
 fi
 
+# ── MCP server dependencies ────────────────────────────────────────────────
+
+header "MCP Server"
+
+if command -v node &>/dev/null; then
+  ok "node $(node --version)"
+  if [[ -f "$INSTALL_DIR/mcp/package.json" ]]; then
+    (cd "$INSTALL_DIR/mcp" && npm install --production --quiet 2>/dev/null)
+    ok "MCP server dependencies installed"
+  fi
+else
+  warn "node not found — MCP server won't work without Node.js"
+fi
+
 # ── Clear plugin cache ──────────────────────────────────────────────────────
 
 CACHE_DIR="$HOME/.claude/plugins/cache/local/$PLUGIN_NAME"

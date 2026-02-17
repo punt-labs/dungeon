@@ -30,15 +30,27 @@ This file is the authoritative record of design decisions, prior approaches, and
 │  Claude receives the skill prompt + $ARGUMENTS.                  │
 │  The prompt instructs Claude to:                                 │
 │                                                                  │
-│  1. Read game state from .claude/dungeon.local.md                │
-│  2. Read the adventure script from scripts/<name>.md             │
+│  1. dungeon_load → game state                                    │
+│  2. dungeon_read_script → adventure script                       │
 │  3. Find the current scene                                       │
 │  4. Semantically match the player's input to an action           │
 │  5. Apply effects (health, inventory, flags, scene change)       │
-│  6. Write updated state back to .claude/dungeon.local.md         │
+│  6. dungeon_save → updated state                                 │
 │  7. Render the new scene with ASCII art and options              │
 │                                                                  │
-│  No code runs. Claude IS the game engine.                        │
+│  No game logic code runs. Claude IS the game engine.             │
+└───────────────────────────┬────────────────────────────────────┘
+                            │ MCP (stdio)
+                            ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                   MCP Server (mcp/server.mjs)                     │
+│                   Dumb I/O — no game logic                        │
+│                                                                  │
+│  dungeon_load / dungeon_save    →  .claude/dungeon.local.md      │
+│  dungeon_read_script            →  scripts/<name>.md             │
+│  dungeon_list_scripts           →  scripts/*.md frontmatter      │
+│  dungeon_read_assets            →  assets/ascii-art.md           │
+│  dungeon_delete_save            →  rm .claude/dungeon.local.md   │
 └───────┬───────────────────────────────┬──────────────────────────┘
         │                               │
         ▼                               ▼
@@ -65,15 +77,15 @@ This file is the authoritative record of design decisions, prior approaches, and
 ### Data Flow Per Turn
 
 ```
-Player                 Claude (via SKILL.md)              Filesystem
+Player                 Claude (via SKILL.md)              MCP Server
   │                          │                               │
   │  /dungeon attack goblin  │                               │
   ├─────────────────────────►│                               │
-  │                          │  Read .claude/dungeon.local.md│
+  │                          │  dungeon_load                  │
   │                          ├──────────────────────────────►│
   │                          │◄──────────────────────────────┤
   │                          │                               │
-  │                          │  Read scripts/classic-...md   │
+  │                          │  dungeon_read_script           │
   │                          ├──────────────────────────────►│
   │                          │◄──────────────────────────────┤
   │                          │                               │
@@ -84,7 +96,7 @@ Player                 Claude (via SKILL.md)              Filesystem
   │                          │  [apply: health -25]          │
   │                          │  [apply: next_scene = fork]   │
   │                          │                               │
-  │                          │  Write updated state           │
+  │                          │  dungeon_save                  │
   │                          ├──────────────────────────────►│
   │                          │                               │
   │  Scene: The Forking Path │                               │
@@ -162,11 +174,9 @@ From the [official plugin docs](https://code.claude.com/docs/en/plugins) and exa
 
 ### `/d` Shorthand
 
-The plan originally called for both `/d` and `/dungeon`. With plugin namespacing, `/d` would require either:
-- Naming the plugin `d` (poor discoverability)
-- A command at `commands/d.md` → `/dungeon:d` (longer than `/dungeon`)
+**Status:** REVISITED — original conclusion was wrong.
 
-Neither is good. We accept `/dungeon` as the primary command. Users who want `/d` can create a standalone shortcut at `.claude/commands/d.md` in their project — this is outside plugin scope.
+The plan originally called for both `/d` and `/dungeon`. The original analysis assumed `/d` was impossible within the plugin, but playtest showed `Unknown skill: d` when a player tried it — `/d` is expected UX for a game. A custom command within the plugin should map `/d` to `/dungeon`. See issue `claude-dungeon-45w`.
 
 ---
 
@@ -340,3 +350,57 @@ Added `"dungeon@local": true` to the `enabledPlugins` map in `~/.claude/settings
 ### Implication for install.sh
 
 The installer currently handles steps 1 and 2 but not step 3. Modifying `settings.json` programmatically is risky (it contains permissions, hooks, and other user config). For now, the installer should document the manual step. A future improvement could use `jq` to add the enabledPlugins entry if not present.
+
+---
+
+## DES-008: MCP Server for Non-Intrusive Game I/O
+
+**Date:** 2026-02-16
+**Status:** SETTLED
+**Topic:** Replacing Read/Write tools with a dedicated MCP server for game state
+
+### The Problem
+
+Playtest revealed that using Claude Code's generic `Write` tool for game state is intrusive. Every save triggers a permission prompt and displays the full file content in the UI. For a game that saves every turn, this destroys immersion — the player sees tool approval dialogs instead of game narration.
+
+The `Read` tool is less disruptive but still displays file contents in collapsible tool-use blocks that clutter the game output.
+
+### Design
+
+A Node.js MCP server (`mcp/server.mjs`) exposes six tools for all game I/O:
+
+| Tool | Purpose |
+|------|---------|
+| `dungeon_load` | Read game state (returns content or `"NO_SAVE_FILE"`) |
+| `dungeon_save` | Write game state (full content as input) |
+| `dungeon_delete_save` | Delete save file (for new game) |
+| `dungeon_read_script` | Read adventure script by name |
+| `dungeon_list_scripts` | List available scripts with metadata |
+| `dungeon_read_assets` | Read shared ASCII art |
+
+The server uses `@modelcontextprotocol/sdk` with stdio transport. Claude Code spawns it as a subprocess and communicates via JSON-RPC over stdin/stdout.
+
+### Path Resolution
+
+- **State file:** `process.cwd() + "/.claude/dungeon.local.md"` — resolves relative to the project where Claude Code is running, so each project gets its own save.
+- **Scripts and assets:** Resolved relative to `import.meta.url` → the plugin installation directory. This works whether the plugin is git-cloned or symlinked for development.
+
+### Why MCP (Not Hooks, Not a Custom Tool)
+
+- **MCP tools execute silently.** No permission prompts, no file content displayed in UI. The player sees only game narration.
+- **Scoped access.** The server only touches game files — it can't read arbitrary files or execute commands. This is safer than granting broad Write permissions.
+- **Plugin-native.** Claude Code's `.mcp.json` in a plugin is the standard way to add tools. No hacks, no workarounds.
+
+### Trade-off: DES-001 Tension
+
+DES-001 says "no code, only prompts." This MCP server is ~90 lines of JavaScript. We accept this because:
+
+1. **The game logic is still entirely in the prompt.** The MCP server is dumb I/O — it reads files, writes files, lists directories. Zero game logic.
+2. **The alternative (Write tool prompts every turn) makes the game unplayable.** DES-001's spirit is simplicity and leverage; requiring players to approve file writes every turn is neither simple nor leveraging Claude Code well.
+3. **The dependency is minimal.** Node.js + one npm package. The installer checks for `node` and warns if missing.
+
+### What Changed
+
+- `SKILL.md` now references `dungeon_load`, `dungeon_save`, etc. instead of Read/Write tools
+- `.mcp.json` at plugin root registers the server
+- `install.sh` runs `npm install` in `mcp/` after cloning

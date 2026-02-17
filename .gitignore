@@ -5,3 +5,6 @@ prfaq.*
 
 # Claude Code local files
 .claude/
+
+# MCP server dependencies
+mcp/node_modules/
