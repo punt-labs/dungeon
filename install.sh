@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # Claude Dungeon Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/jfreeman/claude-dungeon/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/punt-labs/dungeon/main/install.sh | bash
 
-REPO="https://github.com/jfreeman/claude-dungeon.git"
+REPO="https://github.com/punt-labs/dungeon.git"
 PLUGIN_NAME="dungeon"
 PLUGINS_DIR="$HOME/.claude/plugins/local-plugins/plugins"
 MARKETPLACE="$HOME/.claude/plugins/local-plugins/.claude-plugin/marketplace.json"
