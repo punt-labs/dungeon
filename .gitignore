@@ -1,0 +1,7 @@
+# Research & PR/FAQ artifacts
+research/
+lancedb/
+prfaq.*
+
+# Claude Code local files
+.claude/
