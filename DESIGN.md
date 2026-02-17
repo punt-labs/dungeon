@@ -30,12 +30,12 @@ This file is the authoritative record of design decisions, prior approaches, and
 │  Claude receives the skill prompt + $ARGUMENTS.                  │
 │  The prompt instructs Claude to:                                 │
 │                                                                  │
-│  1. dungeon_load → game state                                    │
-│  2. dungeon_read_script → adventure script                       │
+│  1. load → game state                                             │
+│  2. read_script → adventure script                                │
 │  3. Find the current scene                                       │
 │  4. Semantically match the player's input to an action           │
 │  5. Apply effects (health, inventory, flags, scene change)       │
-│  6. dungeon_save → updated state                                 │
+│  6. save → updated state                                          │
 │  7. Render the new scene with ASCII art and options              │
 │                                                                  │
 │  No game logic code runs. Claude IS the game engine.             │
@@ -46,11 +46,11 @@ This file is the authoritative record of design decisions, prior approaches, and
 │                   MCP Server (mcp/server.mjs)                     │
 │                   Dumb I/O — no game logic                        │
 │                                                                  │
-│  dungeon_load / dungeon_save    →  .claude/dungeon.local.md      │
-│  dungeon_read_script            →  scripts/<name>.md             │
-│  dungeon_list_scripts           →  scripts/*.md frontmatter      │
-│  dungeon_read_assets            →  assets/ascii-art.md           │
-│  dungeon_delete_save            →  rm .claude/dungeon.local.md   │
+│  load / save                    →  .claude/dungeon.local.md      │
+│  read_script                    →  scripts/<name>.md             │
+│  list_scripts                   →  scripts/*.md frontmatter      │
+│  read_assets                    →  assets/ascii-art.md           │
+│  delete_save                    →  rm .claude/dungeon.local.md   │
 └───────┬───────────────────────────────┬──────────────────────────┘
         │                               │
         ▼                               ▼
@@ -81,11 +81,11 @@ Player                 Claude (via SKILL.md)              MCP Server
   │                          │                               │
   │  /dungeon attack goblin  │                               │
   ├─────────────────────────►│                               │
-  │                          │  dungeon_load                  │
+  │                          │  load                          │
   │                          ├──────────────────────────────►│
   │                          │◄──────────────────────────────┤
   │                          │                               │
-  │                          │  dungeon_read_script           │
+  │                          │  read_script                   │
   │                          ├──────────────────────────────►│
   │                          │◄──────────────────────────────┤
   │                          │                               │
@@ -96,7 +96,7 @@ Player                 Claude (via SKILL.md)              MCP Server
   │                          │  [apply: health -25]          │
   │                          │  [apply: next_scene = fork]   │
   │                          │                               │
-  │                          │  dungeon_save                  │
+  │                          │  save                          │
   │                          ├──────────────────────────────►│
   │                          │                               │
   │  Scene: The Forking Path │                               │
@@ -371,12 +371,12 @@ A Node.js MCP server (`mcp/server.mjs`) exposes six tools for all game I/O:
 
 | Tool | Purpose |
 |------|---------|
-| `dungeon_load` | Read game state (returns content or `"NO_SAVE_FILE"`) |
-| `dungeon_save` | Write game state (full content as input) |
-| `dungeon_delete_save` | Delete save file (for new game) |
-| `dungeon_read_script` | Read adventure script by name |
-| `dungeon_list_scripts` | List available scripts with metadata |
-| `dungeon_read_assets` | Read shared ASCII art |
+| `load` | Read game state (returns content or `"NO_SAVE_FILE"`) |
+| `save` | Write game state (full content as input) |
+| `delete_save` | Delete save file (for new game) |
+| `read_script` | Read adventure script by name |
+| `list_scripts` | List available scripts with metadata |
+| `read_assets` | Read shared ASCII art |
 
 The server uses `@modelcontextprotocol/sdk` with stdio transport. Claude Code spawns it as a subprocess and communicates via JSON-RPC over stdin/stdout.
 
@@ -401,6 +401,6 @@ DES-001 says "no code, only prompts." This MCP server is ~90 lines of JavaScript
 
 ### What Changed
 
-- `SKILL.md` now references `dungeon_load`, `dungeon_save`, etc. instead of Read/Write tools
-- `.mcp.json` at plugin root registers the server
+- `SKILL.md` now references `load`, `save`, etc. instead of Read/Write tools
+- `plugin.json` registers the MCP server inline via `mcpServers` field
 - `install.sh` runs `npm install` in `mcp/` after cloning

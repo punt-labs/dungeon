@@ -2,7 +2,7 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "mcp__plugin_dungeon_dungeon__dungeon_.*",
+        "matcher": "mcp__plugin_dungeon_game__.*",
         "hooks": [
           {
             "type": "command",

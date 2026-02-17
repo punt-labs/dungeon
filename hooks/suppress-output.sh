@@ -1,38 +1,40 @@
 #!/usr/bin/env bash
 # Suppress verbose MCP tool output in the UI panel.
 #
-# Without this hook, every dungeon_load/dungeon_read_script call shows
-# the full file content with "ctrl+o to expand" — breaking game immersion.
+# updatedMCPToolOutput: short summary shown in the tool-result panel.
+# additionalContext: full tool response passed to the model as context.
 #
-# Sets updatedMCPToolOutput to a minimal summary so the panel stays clean.
-# The model still receives the full tool response for game logic.
+# Without this hook, every load/read_script call shows the full file
+# content with "ctrl+o to expand" — breaking game immersion.
 
 INPUT=$(cat)
 TOOL=$(echo "$INPUT" | jq -r '.tool_name')
+# tool_response is an MCP content array: [{type:"text",text:"..."}]
+# (biff uses FastMCP which wraps as {"result":"..."} — different format)
+RESULT=$(echo "$INPUT" | jq -r '.tool_response[0].text')
 
 case "$TOOL" in
-  *dungeon_load)
-    RESULT=$(echo "$INPUT" | jq -r '.tool_response' | jq -r '.result // .')
+  *__load)
     if [[ "$RESULT" == "NO_SAVE_FILE" ]]; then
       SUMMARY="no save"
     else
       SUMMARY="state loaded"
     fi
     ;;
-  *dungeon_save)
+  *__save)
     SUMMARY="saved"
     ;;
-  *dungeon_delete_save)
+  *__delete_save)
     SUMMARY="save deleted"
     ;;
-  *dungeon_read_script)
+  *__read_script)
     NAME=$(echo "$INPUT" | jq -r '.tool_input.name // "script"')
     SUMMARY="$NAME loaded"
     ;;
-  *dungeon_list_scripts)
+  *__list_scripts)
     SUMMARY="scripts listed"
     ;;
-  *dungeon_read_assets)
+  *__read_assets)
     SUMMARY="assets loaded"
     ;;
   *)
@@ -40,9 +42,10 @@ case "$TOOL" in
     ;;
 esac
 
-jq -n --arg s "$SUMMARY" '{
+jq -n --arg s "$SUMMARY" --arg ctx "$RESULT" '{
   hookSpecificOutput: {
     hookEventName: "PostToolUse",
-    updatedMCPToolOutput: $s
+    updatedMCPToolOutput: $s,
+    additionalContext: $ctx
   }
 }'
