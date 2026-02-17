@@ -4,5 +4,12 @@
   "version": "0.1.0",
   "author": {
     "name": "jfreeman"
+  },
+  "mcpServers": {
+    "dungeon": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs"]
+    }
   }
 }
