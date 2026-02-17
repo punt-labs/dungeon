@@ -169,6 +169,22 @@ else
   warn "node not found — MCP server won't work without Node.js"
 fi
 
+# ── Shorthand command ──────────────────────────────────────────────────────
+
+header "Shorthand"
+
+COMMANDS_DIR="$HOME/.claude/commands"
+D_CMD="$COMMANDS_DIR/d.md"
+mkdir -p "$COMMANDS_DIR"
+cat > "$D_CMD" <<'CMD'
+---
+description: "Shorthand for /dungeon — play a text adventure game"
+---
+
+Use the Skill tool to invoke the `dungeon` skill with `$ARGUMENTS` as the args parameter.
+CMD
+ok "/d shorthand installed"
+
 # ── Clear plugin cache ──────────────────────────────────────────────────────
 
 CACHE_DIR="$HOME/.claude/plugins/cache/local/$PLUGIN_NAME"
