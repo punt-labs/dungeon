@@ -1,0 +1,52 @@
+{
+  // Disable line length — adventure scripts have long descriptive text
+  "MD013": false,
+  // Heading increment — scripts jump heading levels for game structure
+  "MD001": false,
+  // Unordered list style — scripts mix markers for visual variety
+  "MD004": false,
+  // Unordered list indentation — adventure scripts use non-standard indentation
+  "MD007": false,
+  // Trailing spaces — preserved in scripts for formatting
+  "MD009": false,
+  // Hard tabs — present in some script content
+  "MD010": false,
+  // Multiple blank lines — used for visual separation in scripts
+  "MD012": false,
+  // Dollar signs before commands — used in game command examples
+  "MD014": false,
+  // Blanks around headings — compact formatting in prompts and scripts
+  "MD022": false,
+  // Duplicate headings — repeated section names in scripts and prompts
+  "MD024": false,
+  // Single H1 — adventure scripts have multiple top-level sections
+  "MD025": false,
+  // Multiple spaces after blockquote — present in scripts
+  "MD026": false,
+  // Ordered list prefix — intentional numbering
+  "MD029": false,
+  // Blanks around fences — compact formatting
+  "MD031": false,
+  // Blanks around lists — tight list formatting in prompts and scripts
+  "MD032": false,
+  // Inline HTML — adventure scripts use HTML for formatting
+  "MD033": false,
+  // Bare URLs — acceptable in scripts
+  "MD034": false,
+  // Emphasis as heading — used for game styling
+  "MD036": false,
+  // Fenced code language — example and game blocks don't need languages
+  "MD040": false,
+  // First line heading — prompts and scripts start with narrative text
+  "MD041": false,
+  // Image alt text — game images use contextual alt text patterns
+  "MD045": false,
+  // Emphasis style — scripts mix for variety
+  "MD049": false,
+  // Link/image references — scripts have various reference patterns
+  "MD051": false,
+  "MD052": false,
+  "MD053": false,
+  // Disable table column style — compact pipes are fine
+  "MD060": false
+}
