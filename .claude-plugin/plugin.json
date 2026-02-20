@@ -3,7 +3,9 @@
   "description": "A text adventure game engine for Claude Code. Play scripted dungeon crawls, UNIX-themed adventures, and more — powered by Claude as the game master.",
   "version": "0.1.0",
   "author": {
-    "name": "jfreeman"
+    "name": "jfreeman",
+    "email": "hello@punt-labs.com",
+    "organization": "Punt Labs"
   },
   "mcpServers": {
     "game": {
