@@ -1,7 +1,7 @@
 {
   "name": "dungeon",
   "description": "A text adventure game engine for Claude Code. Play scripted dungeon crawls, UNIX-themed adventures, and more — powered by Claude as the game master.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": {
     "name": "Punt Labs",
     "email": "hello@punt-labs.com"
