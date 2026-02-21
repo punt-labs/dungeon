@@ -25,8 +25,30 @@ No parser. No runtime. Claude's natural language understanding *is* the parser.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/punt-labs/dungeon/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/punt-labs/dungeon/a22fab7/install.sh | sh
 ```
+
+<details>
+<summary>Manual install</summary>
+
+```bash
+claude plugin marketplace add punt-labs/claude-plugins
+claude plugin install dungeon@punt-labs
+```
+
+</details>
+
+<details>
+<summary>Verify before running</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/punt-labs/dungeon/a22fab7/install.sh -o install.sh
+shasum -a 256 install.sh
+cat install.sh
+sh install.sh
+```
+
+</details>
 
 Then restart Claude Code and type `/dungeon` to start.
 
