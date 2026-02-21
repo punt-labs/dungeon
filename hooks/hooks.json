@@ -12,7 +12,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "mcp__plugin_dungeon_game__.*",
+        "matcher": "mcp__plugin_dungeon_grimoire__.*",
         "hooks": [
           {
             "type": "command",

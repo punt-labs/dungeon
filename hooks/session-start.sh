@@ -3,7 +3,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SETTINGS="$HOME/.claude/settings.json"
-TOOL_PATTERN="mcp__plugin_dungeon_game__"
+TOOL_PATTERN="mcp__plugin_dungeon_grimoire__"
 
 # ── Install MCP dependencies if missing ──────────────────────────────────
 MCP_DIR="$PLUGIN_ROOT/mcp"
@@ -24,13 +24,27 @@ if [[ ! -f "$D_CMD" && -f "$PLUGIN_ROOT/commands/d.md" ]]; then
 fi
 
 # ── Allow MCP tools in user settings if not already allowed ──────────────
+OLD_PATTERN="mcp__plugin_dungeon_game__"
 if command -v jq &>/dev/null && [[ -f "$SETTINGS" ]]; then
+  NEEDS_UPDATE=false
+
+  # Remove stale permission from old server name (game → grimoire)
+  if jq -e ".permissions.allow // [] | map(select(contains(\"$OLD_PATTERN\"))) | length > 0" "$SETTINGS" >/dev/null 2>&1; then
+    TMPFILE="$(mktemp)"
+    jq '.permissions.allow = [.permissions.allow[] | select(contains("mcp__plugin_dungeon_game__") | not)]' "$SETTINGS" > "$TMPFILE"
+    mv "$TMPFILE" "$SETTINGS"
+    NEEDS_UPDATE=true
+  fi
+
+  # Add new permission if missing
   if ! jq -e ".permissions.allow // [] | map(select(contains(\"$TOOL_PATTERN\"))) | length > 0" "$SETTINGS" >/dev/null 2>&1; then
     TMPFILE="$(mktemp)"
-    jq '.permissions.allow = (.permissions.allow // []) + ["mcp__plugin_dungeon_game__*"]' "$SETTINGS" > "$TMPFILE"
+    jq '.permissions.allow = (.permissions.allow // []) + ["mcp__plugin_dungeon_grimoire__*"]' "$SETTINGS" > "$TMPFILE"
     mv "$TMPFILE" "$SETTINGS"
-    TOOLS_ALLOWED=true
+    NEEDS_UPDATE=true
   fi
+
+  [[ "$NEEDS_UPDATE" == "true" ]] && TOOLS_ALLOWED=true
 fi
 
 # ── Notify Claude if anything was set up ─────────────────────────────────

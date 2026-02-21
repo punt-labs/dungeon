@@ -14,12 +14,12 @@ const assetsDir = join(pluginRoot, "assets");
 const stateFile = join(process.cwd(), ".claude", "dungeon.local.md");
 
 const server = new McpServer(
-  { name: "dungeon", version: "0.1.0" },
+  { name: "dungeon", version: "0.1.2" },
   { instructions: "Dungeon game state tools. Use these instead of Read/Write for all dungeon game I/O." }
 );
 
-// ── load ──────────────────────────────────────────────────────────────────────
-server.registerTool("load", {
+// ── recall ──────────────────────────────────────────────────────────────────
+server.registerTool("recall", {
   description: "Load the current game state. Returns file content or NO_SAVE_FILE if no game in progress.",
 }, async () => {
   try {
@@ -33,8 +33,8 @@ server.registerTool("load", {
   }
 });
 
-// ── save ──────────────────────────────────────────────────────────────────────
-server.registerTool("save", {
+// ── inscribe ────────────────────────────────────────────────────────────────
+server.registerTool("inscribe", {
   description: "Save game state. Pass the full file content (YAML frontmatter + adventure log).",
   inputSchema: {
     content: z.string().describe("Full game state file content"),
@@ -44,8 +44,8 @@ server.registerTool("save", {
   return { content: [{ type: "text", text: "OK" }] };
 });
 
-// ── delete_save ──────────────────────────────────────────────────────────────
-server.registerTool("delete_save", {
+// ── obliterate ──────────────────────────────────────────────────────────────
+server.registerTool("obliterate", {
   description: "Delete the save file (for starting a new game).",
 }, async () => {
   try {
@@ -59,8 +59,8 @@ server.registerTool("delete_save", {
   }
 });
 
-// ── read_script ──────────────────────────────────────────────────────────────
-server.registerTool("read_script", {
+// ── unfurl_scroll ───────────────────────────────────────────────────────────
+server.registerTool("unfurl_scroll", {
   description: "Read an adventure script by name (without .md extension).",
   inputSchema: {
     name: z.string().describe("Script name, e.g. 'classic-fantasy-dungeon'"),
@@ -71,8 +71,8 @@ server.registerTool("read_script", {
   return { content: [{ type: "text", text: content }] };
 });
 
-// ── list_scripts ─────────────────────────────────────────────────────────────
-server.registerTool("list_scripts", {
+// ── quest_board ─────────────────────────────────────────────────────────────
+server.registerTool("quest_board", {
   description: "List available adventure scripts with titles and descriptions.",
 }, async () => {
   const files = (await readdir(scriptsDir)).filter(f => f.endsWith(".md")).sort();
@@ -93,8 +93,8 @@ server.registerTool("list_scripts", {
   return { content: [{ type: "text", text: scripts.join("\n") }] };
 });
 
-// ── read_assets ──────────────────────────────────────────────────────────────
-server.registerTool("read_assets", {
+// ── scry ────────────────────────────────────────────────────────────────────
+server.registerTool("scry", {
   description: "Read the shared ASCII art assets file.",
 }, async () => {
   const content = await readFile(join(assetsDir, "ascii-art.md"), "utf-8");

@@ -4,7 +4,7 @@
 # updatedMCPToolOutput: short summary shown in the tool-result panel.
 # additionalContext: full tool response passed to the model as context.
 #
-# Without this hook, every load/read_script call shows the full file
+# Without this hook, every recall/unfurl_scroll call shows the full file
 # content with "ctrl+o to expand" — breaking game immersion.
 
 INPUT=$(cat)
@@ -14,28 +14,28 @@ TOOL=$(echo "$INPUT" | jq -r '.tool_name')
 RESULT=$(echo "$INPUT" | jq -r '.tool_response[0].text')
 
 case "$TOOL" in
-  *__load)
+  *__recall)
     if [[ "$RESULT" == "NO_SAVE_FILE" ]]; then
       SUMMARY="no save"
     else
-      SUMMARY="state loaded"
+      SUMMARY="state recalled"
     fi
     ;;
-  *__save)
-    SUMMARY="saved"
+  *__inscribe)
+    SUMMARY="inscribed"
     ;;
-  *__delete_save)
-    SUMMARY="save deleted"
+  *__obliterate)
+    SUMMARY="save obliterated"
     ;;
-  *__read_script)
-    NAME=$(echo "$INPUT" | jq -r '.tool_input.name // "script"')
-    SUMMARY="$NAME loaded"
+  *__unfurl_scroll)
+    NAME=$(echo "$INPUT" | jq -r '.tool_input.name // "scroll"')
+    SUMMARY="$NAME unfurled"
     ;;
-  *__list_scripts)
-    SUMMARY="scripts listed"
+  *__quest_board)
+    SUMMARY="quests listed"
     ;;
-  *__read_assets)
-    SUMMARY="assets loaded"
+  *__scry)
+    SUMMARY="visions revealed"
     ;;
   *)
     exit 0
