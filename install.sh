@@ -10,8 +10,9 @@ else
   BOLD='' GREEN='' YELLOW='' NC=''
 fi
 
-info() { printf '%b==>%b %s\n' "$BOLD" "$NC" "$1"; }
+info() { printf '%b▶%b %s\n' "$BOLD" "$NC" "$1"; }
 ok()   { printf '  %b✓%b %s\n' "$GREEN" "$NC" "$1"; }
+warn() { printf '  %b!%b %s\n' "$YELLOW" "$NC" "$1"; }
 fail() { printf '  %b✗%b %s\n' "$YELLOW" "$NC" "$1"; exit 1; }
 
 MARKETPLACE_REPO="punt-labs/claude-plugins"
@@ -40,12 +41,36 @@ else
   ok "marketplace registered"
 fi
 
-# --- Step 3: Install plugin ---
+# --- Step 3: SSH fallback for plugin install ---
+
+# claude plugin install clones via SSH (git@github.com:...).
+# Users without SSH keys need an HTTPS fallback.
+NEED_HTTPS_REWRITE=0
+cleanup_https_rewrite() {
+  if [ "$NEED_HTTPS_REWRITE" = "1" ]; then
+    git config --global --unset url."https://github.com/".insteadOf 2>/dev/null || true
+    NEED_HTTPS_REWRITE=0
+  fi
+}
+trap cleanup_https_rewrite EXIT INT TERM
+
+if ! ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=5 -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+  warn "SSH auth to GitHub unavailable, using HTTPS fallback"
+  git config --global url."https://github.com/".insteadOf "git@github.com:"
+  NEED_HTTPS_REWRITE=1
+fi
+
+# --- Step 4: Install plugin ---
 
 info "Installing $PLUGIN_NAME..."
 
-claude plugin install "${PLUGIN_NAME}@${MARKETPLACE_NAME}" || fail "Failed to install $PLUGIN_NAME"
+if ! claude plugin install "${PLUGIN_NAME}@${MARKETPLACE_NAME}"; then
+  cleanup_https_rewrite
+  fail "Failed to install $PLUGIN_NAME"
+fi
 ok "$PLUGIN_NAME installed"
+
+cleanup_https_rewrite
 
 # --- Done ---
 
