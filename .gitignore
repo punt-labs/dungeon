@@ -2,9 +2,13 @@
 research/
 lancedb/
 prfaq.*
+!prfaq.pdf
+!prfaq.tex
+!prfaq.bib
 
 # Claude Code local files
 .claude/
 
 # MCP server dependencies
 mcp/node_modules/
+.biff.local

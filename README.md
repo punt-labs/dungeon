@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/github/license/punt-labs/dungeon)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/punt-labs/dungeon/docs.yml?label=CI)](https://github.com/punt-labs/dungeon/actions/workflows/docs.yml)
+[![Working Backwards](https://img.shields.io/badge/Working_Backwards-hypothesis-lightgrey)](./prfaq.pdf)
 
 A text adventure engine for [Claude Code](https://claude.ai/code). Claude is the game master — no code runs, only prompts. Players type natural language commands and Claude interprets them, manages game state, and narrates the story.
 
