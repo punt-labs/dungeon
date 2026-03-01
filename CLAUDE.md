@@ -16,7 +16,7 @@ All markdown must pass markdownlint before commit. CI enforces this via `docs.ym
 
 - **`skills/dungeon/SKILL.md`** — the game engine. Changes affect all gameplay. Test by running `/dungeon` after any edit.
 - **`scripts/*.md`** — adventure scripts. Each is a self-contained game world. Follow the existing structure (YAML frontmatter + rooms + encounters).
-- **`mcp-server/`** — MCP tools for game state persistence. Changes affect save/load behavior.
+- **`mcp/`** — MCP tools for game state persistence. Changes affect save/load behavior.
 
 ## Issue Tracking
 
