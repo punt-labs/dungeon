@@ -29,7 +29,7 @@ No parser. No runtime. Claude's natural language understanding *is* the parser.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/punt-labs/dungeon/a22fab7/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/punt-labs/dungeon/e3653eb/install.sh | sh
 ```
 
 <details>
@@ -46,7 +46,7 @@ claude plugin install dungeon@punt-labs
 <summary>Verify before running</summary>
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/punt-labs/dungeon/a22fab7/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/punt-labs/dungeon/e3653eb/install.sh -o install.sh
 shasum -a 256 install.sh
 cat install.sh
 sh install.sh
