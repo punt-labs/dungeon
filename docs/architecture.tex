@@ -1,0 +1,1368 @@
+%
+% architecture.tex
+%
+% Dungeon: Technical Architecture Specification
+% Written for engineers implementing the system.
+%
+% Compile: pdflatex architecture.tex
+%
+
+\documentclass[a4paper,10pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!80!black},
+  commentstyle=\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  breaklines=true,
+  frame=single,
+  framerule=0.3pt,
+  rulecolor=\color{gray!50},
+  backgroundcolor=\color{gray!5},
+  columns=fullflexible,
+}
+
+\newcommand{\iface}[1]{\texttt{#1}}
+\newcommand{\tool}[1]{\texttt{#1}}
+\newcommand{\cmd}[1]{\texttt{#1}}
+\newcommand{\field}[1]{\texttt{#1}}
+\newcommand{\mode}[1]{\textbf{#1}}
+\newcommand{\pkg}[1]{\texttt{#1}}
+
+\begin{document}
+
+\title{Dungeon: Technical Architecture Specification}
+\author{LLM-Directed Text Adventure with Go Game Engine}
+\date{March 2026 --- v0.2 (design-stage)}
+\hypersetup{
+  pdftitle={Dungeon: Technical Architecture Specification},
+  pdfauthor={Punt Labs},
+  pdfsubject={Architecture},
+  pdfcreator={pdflatex}
+}
+\maketitle
+
+\tableofcontents
+\newpage
+
+% ===================================================================
+\section{Overview}
+% ===================================================================
+
+Dungeon is a text adventure game for Claude Code.  In its current
+form the entire engine --- parser, rules, narrator, state machine ---
+is a single LLM skill prompt.  This specification describes the
+evolved architecture: a deterministic Go game engine that handles
+all state transitions, with the LLM acting as Dungeon Master
+(narrator, cartographer, encounter designer) rather than parser.
+
+The central insight is \textbf{play mode as a first-class concept}.
+A play mode is a named combination of three swappable Go interfaces:
+\iface{CommandInterpreter}, \iface{Narrator}, and \iface{Renderer}.
+All modes share the same engine, the same save files, and the same
+scenario format.  Switching modes mid-adventure --- save in
+\mode{dm}, resume in \mode{solo} --- is explicitly supported.
+
+\subsection{Mechanics Reference}
+
+The game targets the mechanical vocabulary of \emph{Wizardry~I}
+(grid-based dungeon, turn-based combat, four character classes,
+dungeon floors with stairs) and the exploratory sensibility of
+\emph{Zork~I} (free-text examination, rich environmental prose,
+consequence of curiosity).  Where the two conflict, Wizardry's
+determinism wins: rules are authoritative, the engine adjudicates.
+
+\subsection{Design Principles}
+
+\begin{enumerate}[label=\textbf{P\arabic*}.]
+  \item \textbf{The engine adjudicates; the LLM narrates.}
+    No game outcome is left to probabilistic language model output.
+    State transitions, combat resolution, and inventory rules are
+    computed deterministically in Go.  The LLM enriches the result
+    with prose.
+  \item \textbf{Interfaces are the seams.}
+    \iface{CommandInterpreter}, \iface{Narrator}, and
+    \iface{Renderer} are the only coupling points between the engine
+    and external systems.  Each can be replaced independently.
+  \item \textbf{Play mode is operational context, not architecture.}
+    The same binary supports DM, solo, and headless play.  No code
+    paths are conditional on mode; mode selects implementations.
+  \item \textbf{Daemon scope stays minimal.}
+    The shared game engine daemon handles game logic and push
+    routing only.  No LLM calls, no orchestration, no business
+    logic outside the game model.
+  \item \textbf{Save files are cross-mode.}
+    A save created in \mode{dm} mode is loadable in \mode{solo} or
+    \mode{headless}.  The \field{play\_mode} field in the save is
+    advisory; \cmd{--mode} overrides it at resume time.
+  \item \textbf{Party is designed in, not bolted on.}
+    \texttt{GameState.Party} is always a slice (length~1 for single
+    player).  Combat, movement, and save tooling accept an optional
+    \field{character\_id}.  Multi-player (Biff Phase~5) requires no
+    engine redesign.
+\end{enumerate}
+
+% ===================================================================
+\section{Play Modes}
+% ===================================================================
+
+Three play modes are first-class citizens of the system.  Each is a
+named triple of interface implementations.
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Interface} & \textbf{dm} & \textbf{solo} & \textbf{headless} \\
+\midrule
+\iface{CommandInterpreter}
+  & \texttt{LLMInterpreter}
+  & \texttt{SLMInterpreter}
+  & \texttt{SLMInterpreter} or \texttt{RulesInterpreter} \\
+\iface{Narrator}
+  & \texttt{LLMNarrator}
+  & \texttt{SLMNarrator}
+  & \texttt{TemplateNarrator} \\
+\iface{Renderer}
+  & \texttt{LuxRenderer}
+  & \texttt{LuxRenderer} or \texttt{CLIRenderer}
+  & \texttt{CLIRenderer} \\
+\textbf{Engine deployment}
+  & daemon
+  & embedded
+  & embedded \\
+\midrule
+\textbf{Invoked by}
+  & \cmd{/dungeon} skill
+  & \cmd{dungeon solo}
+  & \cmd{dungeon headless} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Mode Responsibilities}
+
+\begin{center}
+\begin{tabular}{lp{2.8cm}p{2.8cm}p{2.8cm}}
+\toprule
+\textbf{Concern} & \textbf{dm} & \textbf{solo} & \textbf{headless} \\
+\midrule
+Room narration        & LLM             & SLM             & Template \\
+Free-text parsing     & LLM             & SLM             & Rules/regex \\
+Scenario generation   & LLM interactive & Pre-made only   & Pre-made only \\
+Encounter lore        & LLM             & Pre-made only   & Pre-made only \\
+State transitions     & Engine          & Engine          & Engine \\
+Combat resolution     & Engine          & Engine          & Engine \\
+Fog-of-war, save/load & Engine          & Engine          & Engine \\
+Rendering             & Lux             & Lux or CLI      & CLI \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ===================================================================
+\section{System Architecture}
+% ===================================================================
+
+\subsection{Component Map}
+
+\begin{center}
+\begin{tabular}{lp{3cm}p{7cm}}
+\toprule
+\textbf{Component} & \textbf{Language / Layer} & \textbf{Responsibility} \\
+\midrule
+Game engine
+  & Go (L1)
+  & All state transitions; character, map, inventory, combat, save/load.
+    Zero LLM dependencies. \\
+\iface{CommandInterpreter}
+  & Go interface
+  & Maps player free-text to a structured \texttt{EngineAction}. \\
+\iface{Narrator}
+  & Go interface
+  & Generates human-readable prose from engine event results. \\
+\iface{Renderer}
+  & Go interface
+  & Presents game state to the player (Lux HUD or ANSI CLI). \\
+MCP server
+  & Go binary (\cmd{dungeon serve})
+  & Exposes game engine as MCP tools; NDJSON over Unix socket in
+    daemon mode; stdio in embedded mode. \\
+SKILL.md
+  & Prompt (L4)
+  & DM role instructions for Claude; narration, scenario generation,
+    lore, examination responses. \\
+mcp-proxy
+  & Go shim (design-stage)
+  & Bridges Claude Code stdio MCP to shared daemon; injects session
+    identity; enables multi-player push. \\
+Lux
+  & Python / ImGui
+  & Native display surface; receives element trees from
+    \texttt{LuxRenderer} via MCP tools. \\
+ollama
+  & External service
+  & Serves SLM for \texttt{SLMInterpreter} and \texttt{SLMNarrator}
+    in \mode{solo}/\mode{headless} modes. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Topology: Embedded vs.\ Daemon}
+
+The engine runs in one of two deployment topologies depending on
+play mode.  The MCP tool API and all interface implementations are
+identical in both topologies.
+
+\begin{lstlisting}[title={Embedded (solo / headless)}]
+player (stdin / Lux)
+    |
+dungeon solo            <-- single process
+    |-- Go engine       embedded, no socket
+    |-- CommandInterpreter (SLM or rules)
+    |-- Narrator        (SLM or template)
+    `-- Renderer        (Lux MCP calls / ANSI stdout)
+\end{lstlisting}
+
+\begin{lstlisting}[title={Daemon (dm mode / multi-player)}]
+Claude Code session (DM)
+    `-- mcp-proxy  <10ms, <10MB
+            |
+            | NDJSON Unix socket
+            v
+    dungeon serve   <-- shared daemon, one per adventure
+            |-- GameState (all sessions)
+            |-- session identity routing
+            `-- tools/list_changed push to DM on player action
+
+Claude Code session (player, future)
+    `-- mcp-proxy -----^
+\end{lstlisting}
+
+The daemon holds all game state.  It knows which connection is the
+DM versus a player via session identity injected by mcp-proxy
+(resolved from the topmost \cmd{claude} ancestor PID at connect
+time).  DM-privileged tools are only available to the DM session.
+
+\subsection{Data Flow: DM Mode}
+
+\begin{enumerate}
+  \item \textbf{Button press (navigation/combat).}
+    Player clicks a Lux navigation button.  Lux emits an interaction
+    event.  \texttt{LuxRenderer} calls the engine directly:
+    \tool{move("N")} or \tool{attack(target\_id)}.
+    The engine updates state and returns the result.
+    \texttt{LuxRenderer} patches the HUD (map fog reveal, HP update)
+    via \tool{lux.update()}.
+    \texttt{LLMNarrator} is called with the result to generate
+    flavour text, which is appended to the narration log.
+    \emph{No LLM round-trip occurs for the state transition itself.}
+  \item \textbf{Free-text input.}
+    Player types ``I search the walls for a hidden door.''
+    \texttt{LLMInterpreter} sends the text to Claude with the current
+    room context.  Claude returns a structured action:
+    \texttt{\{action: "search", target: "walls", hint: "door"\}}.
+    Engine executes \tool{search(target, hint)}.
+    Result (found/not found, item if any) passed to
+    \texttt{LLMNarrator}.  Claude generates flavour prose.
+    \texttt{LuxRenderer} updates the narration log.
+  \item \textbf{State change push (multi-player, future).}
+    After any player action, the daemon emits
+    \texttt{tools/list\_changed} to the DM session.
+    Claude Code (DM) notices the notification and calls
+    \tool{get\_game\_state} to read the delta.
+    DM narrates the result to all player sessions.
+\end{enumerate}
+
+\subsection{Data Flow: Solo Mode}
+
+Solo mode is functionally identical to DM mode with two substitutions:
+\texttt{LLMInterpreter} $\to$ \texttt{SLMInterpreter} (ollama HTTP,
+port 11434) and \texttt{LLMNarrator} $\to$ \texttt{SLMNarrator}.
+The engine runs embedded; there is no daemon or proxy.  If ollama is
+unavailable, \texttt{SLMInterpreter} degrades to
+\texttt{RulesInterpreter} automatically.
+
+% ===================================================================
+\section{The Three Engine Interfaces}
+\label{sec:interfaces}
+% ===================================================================
+
+\subsection{CommandInterpreter}
+
+Maps a player's free-text string to a structured
+\texttt{EngineAction} that the engine can execute deterministically.
+
+\begin{lstlisting}[language=Go]
+type CommandInterpreter interface {
+    Interpret(ctx context.Context, input string,
+              state GameState) (EngineAction, error)
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Implementation} & \textbf{Used in} & \textbf{Mechanism} \\
+\midrule
+\texttt{LLMInterpreter}
+  & \mode{dm}
+  & MCP callback to Claude; compact structured prompt; returns JSON action. \\
+\texttt{SLMInterpreter}
+  & \mode{solo}, \mode{headless}
+  & ollama HTTP API; phi-3-mini (default); verb/noun classification. \\
+\texttt{RulesInterpreter}
+  & \mode{headless} fallback
+  & Regex/keyword matching over known verb--noun pairs; no model required. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Narrator}
+
+Generates human-readable prose from an \texttt{EngineEvent}: the
+result of an action after the engine has resolved it.
+
+\begin{lstlisting}[language=Go]
+type Narrator interface {
+    Narrate(ctx context.Context, event EngineEvent,
+            state GameState) (string, error)
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Implementation} & \textbf{Used in} & \textbf{Mechanism} \\
+\midrule
+\texttt{LLMNarrator}
+  & \mode{dm}
+  & Claude generates rich contextual prose; full adventure context provided. \\
+\texttt{SLMNarrator}
+  & \mode{solo}
+  & ollama generates short atmospheric text from room seed + event type. \\
+\texttt{TemplateNarrator}
+  & \mode{headless}
+  & Go text/template: ``You move north. You are in the \{room.name\}.'' \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Renderer}
+
+Presents the current \texttt{GameState} to the player after each
+turn.  Also receives button interaction events in DM/solo modes.
+
+\begin{lstlisting}[language=Go]
+type Renderer interface {
+    Render(ctx context.Context, state GameState,
+           narration string) error
+    Events() <-chan InputEvent  // button presses, free-text
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Implementation} & \textbf{Used in} & \textbf{Mechanism} \\
+\midrule
+\texttt{LuxRenderer}
+  & \mode{dm}, \mode{solo}
+  & Calls Lux MCP tools (\tool{show}, \tool{update}, \tool{recv})
+    to drive the full HUD. \\
+\texttt{CLIRenderer}
+  & \mode{headless}, SSH
+  & ANSI terminal; ASCII map, text HP bar, stdin input loop. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ===================================================================
+\section{Game Engine Design}
+\label{sec:engine}
+% ===================================================================
+
+\subsection{Core Data Model}
+
+\begin{lstlisting}[language=Go]
+type GameState struct {
+    ScenarioID  string
+    PlayMode    string   // advisory; --mode overrides on load
+    Timestamp   string
+    Character   Character
+    Party       []Character  // len 1 for single-player
+    Dungeon     DungeonState
+    Log         []LogEntry
+}
+
+type Character struct {
+    Name       string
+    Class      CharClass   // Fighter | Mage | Thief | Priest
+    Level      int
+    HP, MaxHP  int
+    MP, MaxMP  int
+    Stats      Stats       // STR INT DEX CON WIS CHA
+    XP, Gold   int
+    Inventory  []Item
+    Equipped   Equipment
+    Conditions []Condition
+}
+
+type DungeonState struct {
+    CurrentRoom  string
+    Visited      []string
+    RoomState    map[string]RoomState
+}
+\end{lstlisting}
+
+\subsection{Character}
+
+\begin{itemize}
+  \item \textbf{Classes}: Fighter, Mage, Thief, Priest.
+    Class determines HP dice, MP pool, available spells, and XP
+    thresholds.
+  \item \textbf{Stats}: STR, INT, DEX, CON, WIS, CHA.
+    Bonuses computed by standard table (8--18 range, D\&D-adjacent).
+  \item \textbf{Equipment slots}: weapon, armour, ring, amulet.
+  \item \textbf{Leveling}: XP thresholds defined per class in
+    scenario YAML.  Stat gains on level-up are deterministic.
+\end{itemize}
+
+\subsection{Map}
+
+\begin{itemize}
+  \item Grid-based dungeon in the Wizardry~I style (20$\times$20
+    floor).  Rooms are nodes; corridors are edges.
+  \item \textbf{Pre-generated}: the DM creates the room graph before
+    play begins, either by writing scenario YAML directly or via the
+    \cmd{/dungeon:create} skill command.  Procedural generation is
+    explicitly not used --- it produces maps that are inconsistent on
+    backtracking.
+  \item \textbf{Fog of war}: unvisited rooms are opaque on the Lux
+    map canvas.  Room content is not revealed until the player enters.
+  \item \textbf{Room types}: corridor, chamber, stairway (up/down),
+    treasure vault, boss chamber.
+  \item \textbf{Door kinds}: open, locked (requires key item),
+    hidden (requires search action), one-way, trapped.
+\end{itemize}
+
+\subsection{Combat}
+
+Turn-based, deterministic.  No probabilities are left to the LLM.
+
+\begin{itemize}
+  \item Initiative roll (DEX modifier + 1d10) determines turn order.
+  \item \textbf{Player actions per turn}: Attack, Cast Spell, Use
+    Item, Flee (DEX check), Defend (+AC until next turn).
+  \item \textbf{Enemy AI}: patterns encoded in scenario YAML.
+    Supported patterns: \texttt{aggressive} (always attack),
+    \texttt{cautious} (flee below 30\% HP), \texttt{support}
+    (buff allies before attacking), \texttt{scripted} (fixed action
+    sequence).
+  \item Damage formula: weapon dice + STR modifier vs.\ target AC.
+  \item Conditions: poisoned, stunned, confused, blessed, hasted.
+    Duration in turns; applied/cleared by spells and items.
+  \item XP is awarded at \texttt{end\_combat}; loot rolls are
+    seeded from scenario YAML drop tables.
+\end{itemize}
+
+% ===================================================================
+\section{Data Formats}
+% ===================================================================
+
+\subsection{Scenario Format (YAML)}
+
+Scenarios are pre-authored YAML files stored in \texttt{scenarios/}.
+The engine parses them at startup; the LLM never sees the raw YAML
+during play.
+
+\begin{lstlisting}[title={scenarios/classic-fantasy-dungeon.yaml (excerpt)}]
+id: classic-fantasy-dungeon
+title: "The Grimhold Dungeon"
+description: "A classic dungeon crawl..."
+version: "1.0"
+xp_thresholds:
+  fighter: [0, 2000, 4000, 8000, 16000]
+  mage:    [0, 2500, 5000, 10000, 20000]
+
+rooms:
+  - id: entrance
+    name: "Dungeon Entrance"
+    description: "Stone stairs descend into darkness."
+    exits:
+      south: goblin_lair
+    items: []
+    enemies: []
+
+  - id: goblin_lair
+    name: "Goblin Lair"
+    description: "The reek of smoke and old blood."
+    exits:
+      north: entrance
+      east:  { room: treasure_vault, door: locked, key: rusty_key }
+    enemies:
+      - template: goblin
+        count: 3
+    loot_table:
+      - item: rusty_key
+        drop_chance: 0.8
+
+enemy_templates:
+  goblin:
+    hp_dice: "2d6"
+    ac: 12
+    attack_dice: "1d4"
+    xp: 30
+    ai: aggressive
+\end{lstlisting}
+
+\subsection{Save File Format (JSON)}
+
+Save files live at \texttt{.dungeon/saves/<slot>.json} (gitignored).
+
+\begin{lstlisting}[title={.dungeon/saves/1.json (excerpt)}]
+{
+  "version": 1,
+  "scenario": "classic-fantasy-dungeon",
+  "play_mode": "dm",
+  "timestamp": "2026-03-10T18:00:00Z",
+  "character": {
+    "name": "Aldric", "class": "fighter", "level": 3,
+    "hp": 45, "max_hp": 60, "mp": 0, "max_mp": 0,
+    "stats": {"str":16,"dex":12,"con":14,"int":9,"wis":10,"cha":11},
+    "xp": 1240, "gold": 48,
+    "inventory": [],
+    "equipped": {"weapon": "rusty_sword"},
+    "conditions": []
+  },
+  "party": [],
+  "dungeon": {
+    "current_room": "goblin_lair",
+    "visited_rooms": ["entrance", "corridor_a", "goblin_lair"],
+    "room_state": {
+      "goblin_lair":    {"cleared": true, "items_taken": ["rusty_key"]},
+      "treasure_vault": {"door_locked": false}
+    }
+  },
+  "adventure_log": []
+}
+\end{lstlisting}
+
+\texttt{party} is always present (empty for single-player).
+\texttt{play\_mode} is advisory; \cmd{--mode} overrides on resume.
+
+% ===================================================================
+\section{MCP Tool Surface (Game Engine)}
+% ===================================================================
+
+The engine exposes all game actions as MCP tools.  The interface is
+identical in embedded and daemon topologies.
+
+\subsection{Session Management}
+
+\begin{center}
+\begin{tabular}{lp{4cm}p{5cm}}
+\toprule
+\textbf{Tool} & \textbf{Arguments} & \textbf{Returns} \\
+\midrule
+\tool{new\_game}
+  & \field{scenario\_id}, \field{char\_name}, \field{char\_class},
+    \field{mode?}
+  & Full initial game state \\
+\tool{load\_game}
+  & \field{slot?}, \field{mode?}
+  & Full game state from save \\
+\tool{save\_game}
+  & \field{slot?}
+  & Save file path \\
+\tool{list\_saves}
+  & ---
+  & \texttt{[\{slot, scenario, char, mode, timestamp\}]} \\
+\tool{list\_scenarios}
+  & ---
+  & \texttt{[\{id, title, description\}]} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Navigation}
+
+\begin{center}
+\begin{tabular}{lp{4cm}p{5cm}}
+\toprule
+\textbf{Tool} & \textbf{Arguments} & \textbf{Returns} \\
+\midrule
+\tool{move}
+  & \field{direction}, \field{character\_id?}
+  & new\_room, encounter?, items?, event? \\
+\tool{look}
+  & ---
+  & Current room exits, items, enemies \\
+\tool{get\_map}
+  & ---
+  & Room graph with visited/fog state \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Character and Inventory}
+
+\begin{center}
+\begin{tabular}{lp{4cm}p{5cm}}
+\toprule
+\textbf{Tool} & \textbf{Arguments} & \textbf{Returns} \\
+\midrule
+\tool{get\_character} & --- & Stats, HP/MP, level, XP, gold, conditions \\
+\tool{get\_inventory} & --- & Item list with weights and equipped slots \\
+\tool{pick\_up}   & \field{item\_id}  & success, weight\_remaining \\
+\tool{drop}       & \field{item\_id}  & success \\
+\tool{equip}      & \field{item\_id}  & success, stat\_delta \\
+\tool{use\_item}  & \field{item\_id}, \field{target?} & Effect result \\
+\tool{examine}    & \field{target}    & Raw detail (Narrator adds lore) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Combat}
+
+\begin{center}
+\begin{tabular}{lp{4cm}p{5cm}}
+\toprule
+\textbf{Tool} & \textbf{Arguments} & \textbf{Returns} \\
+\midrule
+\tool{get\_combat\_state}
+  & ---
+  & Turn order, HP, conditions \\
+\tool{attack}
+  & \field{target\_id}, \field{weapon?}, \field{character\_id?}
+  & Roll, damage, target HP, outcome \\
+\tool{cast\_spell}
+  & \field{spell\_id}, \field{target?}, \field{character\_id?}
+  & Effect, MP cost, outcome \\
+\tool{defend}
+  & \field{character\_id?}
+  & Defence bonus until next turn \\
+\tool{use\_item\_combat}
+  & \field{item\_id}, \field{target?}, \field{character\_id?}
+  & Effect result \\
+\tool{flee}
+  & \field{character\_id?}
+  & Success (DEX check); penalty on fail \\
+\tool{end\_combat}
+  & ---
+  & XP gained, loot found \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Search and Interaction}
+
+\begin{center}
+\begin{tabular}{lp{4cm}p{5cm}}
+\toprule
+\textbf{Tool} & \textbf{Arguments} & \textbf{Returns} \\
+\midrule
+\tool{search}
+  & \field{target?}, \field{hint?}
+  & Found items/secrets, or nothing \\
+\tool{interact}
+  & \field{object\_id}, \field{action?}
+  & Outcome (lever pulled, door opened\ldots) \\
+\tool{rest}
+  & ---
+  & HP/MP restored; random encounter check \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ===================================================================
+\section{Lux Display Integration}
+% ===================================================================
+
+\subsection{HUD Layout}
+
+The \texttt{LuxRenderer} drives a four-panel HUD.  Navigation and
+combat buttons deliver input events directly to the engine --- no
+LLM round-trip is required for button-driven actions.
+
+\begin{lstlisting}[title={Lux HUD layout (schematic)}]
++--------------------------------------------------+
+| Menu: [Game] [Character] [Map]                   |
++----------------------------+---------------------+
+|                            | HP  [========--] 45 |
+|   DUNGEON MAP              | MP  [----------]  0 |
+|   (draw canvas,            | Fighter Lv3  XP 1k  |
+|    grid rooms,             +---------------------+
+|    fog of war,             | EXITS               |
+|    visited/unvisited,      |       [N]            |
+|    player dot,             |  [W]       [E]      |
+|    locked doors)           |       [S]            |
+|                            |       [D stairs]     |
++----------------------------+---------------------+
+| NARRATION LOG              | COMBAT (when active) |
+| (markdown, scrolling)      | Goblin [=====--] 8hp |
+|                            | [Attack] [Use Item]  |
+|                            | [Defend] [Flee]      |
+|                            | Round 2 - Your turn  |
++----------------------------+---------------------+
+\end{lstlisting}
+
+\subsection{Update Strategy}
+
+\begin{center}
+\begin{tabular}{lp{8cm}}
+\toprule
+\textbf{Event} & \textbf{Lux operation} \\
+\midrule
+Room transition (new room entered)
+  & \tool{lux.show()} --- replace full narration panel, update map fog \\
+HP/MP change during combat
+  & \tool{lux.update()} --- patch progress bar elements in-place \\
+Narration text appended
+  & \tool{lux.update()} --- append to narration log list \\
+Combat begins/ends
+  & \tool{lux.show()} --- activate or deactivate combat panel \\
+Map fog reveal (new room)
+  & \tool{lux.update()} --- patch map canvas element \\
+Nav button press (player)
+  & \tool{lux.recv()} event $\to$ engine directly \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Lux Tools Used}
+
+The \texttt{LuxRenderer} uses the following Lux MCP tools:
+
+\begin{itemize}
+  \item \tool{show(scene\_id, elements, title?)} --- initial HUD render
+    and full scene transitions.
+  \item \tool{update(scene\_id, patches)} --- incremental HP, MP, fog,
+    and log updates within a scene.
+  \item \tool{recv(timeout?)} --- poll for button interaction events
+    (navigation presses, combat actions).
+\end{itemize}
+
+The engine does not use \tool{show\_table}, \tool{show\_dashboard},
+or \tool{show\_diagram}; those are data-analysis surfaces.
+
+% ===================================================================
+\section{mcp-proxy Integration}
+% ===================================================================
+
+\textbf{Status}: design-stage.  The mcp-proxy binary does not yet
+exist.  DM mode (Phase~2) should initially use direct stdio MCP and
+migrate to the proxy pattern when mcp-proxy ships.
+
+\subsection{Problem}
+
+Claude Code spawns one MCP server process per session via stdio.
+In DM mode, that process is the game engine daemon.  If the DM's
+Claude session owns the engine process via stdio, a second player
+connection is architecturally impossible: there is no shared process
+to connect to, and the DM cannot push events to players.
+
+\subsection{Solution}
+
+mcp-proxy is a near-zero-cost Go shim ($<$10~ms startup,
+$<$10~MB RSS) that each Claude session spawns via stdio.  The shim
+connects to a pre-running shared daemon over a persistent
+bidirectional transport (WebSocket or NDJSON Unix socket) and
+relays MCP messages.  At connect time, mcp-proxy resolves the
+topmost \cmd{claude} ancestor PID and injects it as a session
+identity header.
+
+The daemon uses session identity to:
+
+\begin{itemize}
+  \item Route DM-privileged tools only to the DM session.
+  \item Push \texttt{tools/list\_changed} to the DM when a player
+    takes an action.
+  \item Route DM narration output to all player sessions.
+\end{itemize}
+
+\subsection{Daemon Scope Constraint}
+
+The beads project accumulated 70\,000 lines of daemon code before
+being deleted.  This daemon must not repeat that mistake.  The
+game daemon handles:
+
+\begin{itemize}
+  \item Game state (authoritative \texttt{GameState} for the session).
+  \item MCP tool dispatch (receive call $\to$ engine method $\to$
+    return result).
+  \item Push routing (\texttt{tools/list\_changed}, narration
+    broadcast).
+\end{itemize}
+
+It does not handle: LLM calls, session management, orchestration
+logic, plugin lifecycle, or anything outside the game model.
+
+% ===================================================================
+\section{SLM Integration}
+% ===================================================================
+
+The \texttt{SLMInterpreter} and \texttt{SLMNarrator} call a locally
+running ollama instance over HTTP.
+
+\begin{lstlisting}[title={ollama request (CommandInterpreter)}]
+POST http://localhost:11434/api/generate
+{
+  "model": "phi3",
+  "prompt": "...",
+  "stream": false,
+  "format": "json"
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Default model    & phi3 (phi-3-mini, $\approx$2.3~GB) \\
+Fallback         & \texttt{RulesInterpreter} if ollama unavailable \\
+Context window   & 4\,096 tokens (sufficient for room context) \\
+Response format  & JSON for \texttt{SLMInterpreter}; plain text for \texttt{SLMNarrator} \\
+Timeout          & 5~s (\texttt{SLMInterpreter}); 10~s (\texttt{SLMNarrator}) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\texttt{SLMInterpreter} system prompt provides: current room
+description, available exits, visible items, and a compact action
+schema.  The model returns a JSON action object that the engine
+consumes directly.
+
+\texttt{SLMNarrator} system prompt provides: room seed text from
+scenario YAML plus the resolved event type and outcome.  The model
+returns 1--3 sentences of atmospheric prose.
+
+% ===================================================================
+\section{Biff Extension Points}
+% ===================================================================
+
+The engine is party-ready from day one.  No redesign is required
+when Biff multi-player (Phase~5) is added.
+
+\begin{itemize}
+  \item \texttt{GameState.Party} is always a \texttt{[]Character}
+    slice; single-player sets \texttt{len(Party) == 1}.
+  \item \tool{move}, \tool{attack}, \tool{flee}, \tool{defend} all
+    accept an optional \field{character\_id}; omitting it targets
+    the primary character.
+  \item Combat turn order already handles multiple actors.
+  \item Save files carry a \field{party} array (empty until Biff).
+\end{itemize}
+
+When Biff is added:
+
+\begin{itemize}
+  \item Each Biff participant controls one character in the party.
+  \item \texttt{PostToolUse} hooks notify party members of
+    state-change events.
+  \item The DM narrates for the full party.
+  \item Turn tokens are passed via Biff \cmd{/write} messages.
+\end{itemize}
+
+% ===================================================================
+\section{Implementation Phases}
+% ===================================================================
+
+\begin{center}
+\begin{tabular}{lp{10cm}}
+\toprule
+\textbf{Phase} & \textbf{Deliverable} \\
+\midrule
+\textbf{1 — Engine Core}
+  & Go engine (\texttt{GameState}, \texttt{Character},
+    \texttt{DungeonMap}, \texttt{Inventory}, \texttt{Combat});
+    all three interfaces + all implementations except
+    \texttt{LLMInterpreter}/\texttt{LLMNarrator};
+    \texttt{CLIRenderer} and \texttt{LuxRenderer};
+    \cmd{dungeon serve}, \cmd{dungeon solo}, \cmd{dungeon headless};
+    scenario YAML schema;
+    \texttt{classic-fantasy-dungeon.yaml} migration;
+    save/load: \texttt{.dungeon/saves/<slot>.json}. \\
+\midrule
+\textbf{2 — DM Mode + Lux HUD}
+  & \texttt{LLMInterpreter} + \texttt{LLMNarrator} (MCP callbacks);
+    SKILL.md rewritten for DM role;
+    full Lux HUD (map canvas, HP/MP bars, nav buttons, narration log);
+    \cmd{dungeon dm} command;
+    \cmd{/dungeon:create} --- interactive scenario generation. \\
+\midrule
+\textbf{3 — Combat System}
+  & Turn-based combat: initiative, weapon dice, AC, conditions;
+    enemy AI patterns from scenario YAML;
+    Lux combat panel;
+    XP, leveling, loot rolls;
+    spells (Mage/Priest). \\
+\midrule
+\textbf{4 — Rich World}
+  & Shops, traps (DEX save), cursed items, locked doors;
+    multiple bundled scenarios;
+    DM-generated richer encounters with backstory and puzzles. \\
+\midrule
+\textbf{5 — Biff Multi-player}
+  & Party management (one character per Biff participant);
+    turn tokens via Biff \cmd{/write};
+    shared save state;
+    DM narrates for the full party. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ===================================================================
+\section{Open Questions}
+% ===================================================================
+
+\begin{enumerate}[label=\textbf{Q\arabic*}.]
+  \item \textbf{mcp-proxy dependency.}
+    DM mode (Phase~2) should use direct stdio MCP initially and
+    migrate to mcp-proxy when that binary ships.  Or should Phase~2
+    wait?  The daemon API is identical either way.
+  \item \textbf{SLM model selection.}
+    phi-3-mini ($\approx$2.3~GB), smolLM-1.7B ($\approx$1.0~GB),
+    or mistral-7b-instruct ($\approx$4.1~GB)?  Evaluate against
+    command-classification accuracy on a dungeon command corpus.
+  \item \textbf{Go MCP SDK.}
+    \pkg{github.com/mark3labs/mcp-go} versus a minimal hand-rolled
+    stdio JSON-RPC layer.  The latter is $\approx$200 lines and avoids
+    a dependency; the former is more complete but less battle-tested.
+  \item \textbf{Dice notation parser.}
+    Use a third-party Go library (e.g.\ \pkg{dicerobot/diceparser})
+    or hand-roll?  The required subset (\texttt{NdM+K}) is simple
+    enough to implement in $\approx$50 lines.
+  \item \textbf{Permadeath default.}
+    Scenario YAML can configure \texttt{death: permadeath} or
+    \texttt{death: respawn}.  What should the built-in default be?
+    Wizardry is permadeath; Zork is not.
+\end{enumerate}
+
+% ===================================================================
+\section{Test and Verification Architecture}
+\label{sec:testing}
+% ===================================================================
+
+\subsection{Philosophy}
+
+The single most important property of the test suite is that it tells
+you immediately and unambiguously whether a change broke something.
+Three principles follow from this:
+
+\begin{enumerate}[label=\textbf{P\arabic*}.]
+  \item \textbf{Determinism is the invariant.}
+    The engine (Section~\ref{sec:engine}) must always produce the
+    same output for the same input.  Every test that touches engine
+    logic asserts a deterministic outcome.  No probabilistic
+    assertions, no ``roughly correct.''
+  \item \textbf{Interface seams are injection points.}
+    \iface{CommandInterpreter}, \iface{Narrator}, and
+    \iface{Renderer} (Section~\ref{sec:interfaces}) are the only
+    coupling points to external systems.  All tests above unit level
+    use test doubles at these seams.  No real LLM, SLM, or Lux
+    instance is ever required to run CI.
+  \item \textbf{Headless mode is the CI workhorse.}
+    \mode{headless} uses \texttt{RulesInterpreter} +
+    \texttt{TemplateNarrator} + \texttt{CLIRenderer} — all
+    zero-dependency implementations.  It runs complete game sessions
+    programmatically and is the primary vehicle for integration and
+    end-to-end tests.
+\end{enumerate}
+
+\subsection{The Testing Pyramid}
+
+\begin{center}
+\begin{tabular}{llrp{5.5cm}}
+\toprule
+\textbf{Layer} & \textbf{Trigger} & \textbf{Target} & \textbf{Coverage} \\
+\midrule
+Unit           & Every commit & $<$5~s   & Pure engine functions, parsers, \texttt{RulesInterpreter}, \texttt{TemplateNarrator} \\
+Integration    & Every commit & $<$30~s  & Interface compositions, mock ollama, mock Lux, daemon routing \\
+End-to-End     & Every PR     & $<$2~min & Real \cmd{dungeon} subprocess; MCP wire smoke; save round-trips \\
+Acceptance     & Release      & $<$10~min & YAML game scripts through \cmd{dungeon headless}; full adventures \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All four layers require zero external services.  The full unit and
+integration pass runs in under 30~seconds.  If any target is
+breached, investigate before adding more tests --- the usual
+culprits are sleeping tests, real socket dials, or oversized
+fixture reads.  Slow tests get skipped; skipped tests catch nothing.
+
+\subsection{Layer 1 --- Unit Tests}
+
+\textbf{Location:} \texttt{internal/engine/*\_test.go},
+\texttt{internal/interpreter/*\_test.go},
+\texttt{internal/narrator/*\_test.go}
+
+\textbf{Style:} Pure functions only.  Table-driven.  No goroutines,
+no sockets, no filesystem access outside \texttt{testdata/}.
+
+\subsubsection{Engine Core}
+
+\begin{center}
+\begin{tabular}{lp{5cm}p{4cm}}
+\toprule
+\textbf{Package} & \textbf{What to test} & \textbf{Key cases} \\
+\midrule
+\pkg{engine/character}
+  & Stat bonuses, HP/MP calculation, condition apply/expire
+  & All six stat values; boundary cases (8, 18); stacking conditions \\
+\pkg{engine/combat}
+  & Initiative order, attack roll, damage, AC reduction, flee DEX check
+  & Hit/miss at boundary (roll == AC); multi-actor initiative \\
+\pkg{engine/inventory}
+  & Pick up/drop weight check, equip slot conflict, use-item effect
+  & Full inventory rejection; slot already occupied; consumable self-removes \\
+\pkg{engine/map}
+  & Move through open/locked/hidden doors; fog reveal; stairway traversal
+  & Locked without key; hidden pre/post search; one-way return block \\
+\pkg{engine/leveling}
+  & XP threshold crossing, stat delta per class
+  & Level 1$\to$2, 9$\to$10; class-specific thresholds \\
+\pkg{engine/combat/ai}
+  & Enemy AI pattern execution
+  & \texttt{aggressive} always attacks; \texttt{cautious} flees at 30\%~HP; \texttt{scripted} follows sequence \\
+\pkg{engine/save}
+  & JSON round-trip fidelity
+  & Full \texttt{GameState} marshal/unmarshal deep-equal; version field present \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Target coverage:} \texttt{internal/engine} $\geq$ 90\%
+statement coverage; enforced by CI.
+
+\subsubsection{Parsers and Formats}
+
+\begin{center}
+\begin{tabular}{lp{9cm}}
+\toprule
+\textbf{Package} & \textbf{What to test} \\
+\midrule
+\pkg{scenario/parser}
+  & Valid minimal YAML loads cleanly; missing required field $\to$ typed
+    error; unknown field $\to$ warning, not error; enemy template
+    reference resolves; broken room exit reference $\to$ error \\
+\pkg{dice/parser}
+  & \texttt{1d6}, \texttt{2d6+3}, \texttt{1d20-1}; boundary rolls
+    (min, max); invalid notation $\to$ error \\
+\pkg{save/loader}
+  & Load well-formed save; load save with unknown fields (forward
+    compat); wrong \texttt{version} $\to$ typed migration error \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{RulesInterpreter}
+
+Exhaustive verb/noun coverage.  This interpreter calls no model.
+
+\begin{lstlisting}[title={RulesInterpreter verb table (representative)}]
+"go north" / "n"       -> {action: move, direction: N}
+"attack goblin" / "a"  -> {action: attack, target: "goblin"}
+"pick up sword"        -> {action: pick_up, item: "sword"}
+"search walls"         -> {action: search, target: "walls"}
+"i" / "inventory"      -> {action: get_inventory}
+"rest"                 -> {action: rest}
+(unrecognised input)   -> {action: unknown, raw: "..."}  // not an error
+\end{lstlisting}
+
+\subsubsection{TemplateNarrator}
+
+Table-driven: event type + room seed $\to$ expected substrings.
+
+\begin{lstlisting}[title={TemplateNarrator test cases (representative)}]
+{event: moved,        room_seed: "reeks of smoke"} -> contains seed text
+{event: combat_start, enemies: ["goblin x3"]}      -> contains enemy count
+{event: item_found,   item: "rusty_key"}           -> contains item name
+{event: level_up,     new_level: 4}                -> contains "level 4"
+\end{lstlisting}
+
+\subsection{Layer 2 --- Integration Tests}
+
+\textbf{Location:} \texttt{internal/**/integration\_test.go},
+\texttt{cmd/**/integration\_test.go}
+
+\textbf{Build tag:} \texttt{-tags integration}
+
+\textbf{Style:} Real implementations wired together; external
+services replaced with in-process fakes.  May use goroutines and
+in-memory channels.  No subprocess spawning; no real network outside
+\texttt{net/http/httptest}.
+
+\subsubsection{Engine State Machine Sequences}
+
+Multi-step action sequences exercising real engine state.  These
+catch regressions that unit tests miss because they only test
+individual functions.
+
+\begin{lstlisting}[title={Representative integration sequences}]
+# Locked door flow
+new_game -> move(S) -> move(E) [blocked: locked] ->
+pick_up(rusty_key) -> move(E) [now unlocked]
+Assert: room progression correct; key consumed
+
+# Full combat cycle
+new_game -> move(S) -> {combat begins} ->
+attack x N -> end_combat
+Assert: HP decrements correctly; XP awarded; loot in inventory
+
+# Level-up crossing
+Accumulate XP across several combats
+Assert: level increased; max_HP increased per class table
+
+# Save/load isolation
+new_game -> move(S) -> save -> mutate -> load
+Assert: loaded state equals pre-mutation state
+\end{lstlisting}
+
+\subsubsection{Mock ollama HTTP Server}
+
+\texttt{net/http/httptest.NewServer} serves canned fixture JSON.
+Tests assert that:
+
+\begin{itemize}
+  \item \texttt{SLMInterpreter} correctly parses a JSON action from
+    a canned response.
+  \item HTTP timeout $\to$ automatic fallback to
+    \texttt{RulesInterpreter} (not a crash).
+  \item Non-200 response $\to$ fallback.
+  \item Malformed JSON $\to$ fallback (not panic).
+\end{itemize}
+
+\subsubsection{Mock Lux MCP Server}
+
+An in-process fake that records all \tool{show()} and
+\tool{update()} calls and can inject synthetic interaction events
+(button presses) via a channel.  Tests assert that
+\texttt{LuxRenderer}:
+
+\begin{itemize}
+  \item Calls \tool{show()} on scene transitions (room entry, combat
+    start/end); calls \tool{update()} (not \tool{show()}) for
+    incremental HP, MP, and log changes.
+  \item Routes \tool{recv()} button events to the engine as
+    \texttt{InputEvent}s without passing through the Narrator.
+  \item Does not call \tool{show()} for every HP tick (regression
+    guard against the performance anti-pattern).
+\end{itemize}
+
+\subsubsection{Daemon Session Routing}
+
+Start the daemon in-process with two fake client connections.
+Assign one the DM identity; the other a player identity.
+
+\begin{itemize}
+  \item DM-privileged tools succeed from the DM client; fail from
+    the player client.
+  \item After any player action, \texttt{tools/list\_changed} is
+    pushed to the DM client only.
+  \item Client disconnection does not crash the daemon.
+  \item Two concurrent game sessions are fully isolated.
+\end{itemize}
+
+\subsection{Layer 3 --- End-to-End Tests}
+
+\textbf{Location:} \texttt{e2e/}
+
+\textbf{Build tag:} \texttt{-tags e2e}
+
+\textbf{Style:} Black-box subprocess tests via \texttt{os/exec}.
+Requires \cmd{dungeon} binary pre-built.  Asserts observable
+outputs: exit codes, JSON responses, save files on disk.
+
+\begin{center}
+\begin{tabular}{lp{4.5cm}p{3.5cm}}
+\toprule
+\textbf{Test} & \textbf{Command} & \textbf{Assert} \\
+\midrule
+Help exits clean
+  & \cmd{dungeon --help}
+  & Exit~0; usage text present \\
+List scenarios
+  & \cmd{dungeon list-scenarios}
+  & JSON array; $\geq$1 entry \\
+Headless new game
+  & \cmd{dungeon headless --scenario minimal}
+  & Exit~0; initial state JSON \\
+Scripted run
+  & \cmd{dungeon headless --script minimal-run.yaml}
+  & All steps pass; final state matches \\
+Save round-trip
+  & new\_game $\to$ save $\to$ kill $\to$ load
+  & Save file created; state restored \\
+MCP wire smoke
+  & spawn \cmd{dungeon serve}; call each tool once
+  & Valid JSON for all tools; no unexpected stderr \\
+Cross-mode save
+  & headless save $\to$ \cmd{dungeon solo --dry-run}
+  & \texttt{GameState} matches expected values \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Layer 4 --- Acceptance Tests}
+
+\textbf{Location:} \texttt{e2e/acceptance/}
+
+\textbf{Why headless?}  Acceptance tests must be deterministic.
+\mode{headless} uses \texttt{RulesInterpreter} (no model) and
+\texttt{TemplateNarrator} (no model).  The engine outcome is
+identical for the same scenario and input sequence on every run.
+
+\subsubsection{Game Script Format}
+
+Acceptance tests are expressed as YAML game scripts.  This makes
+them readable and reviewable independently of Go test infrastructure.
+
+\begin{lstlisting}[title={testdata/scripts/complete-run.yaml (excerpt)}]
+scenario: minimal
+character: {name: TestHero, class: fighter}
+steps:
+  - input: "go south"
+    expect: {current_room: goblin_lair, narration_contains: "goblin"}
+
+  - input: "attack"
+    expect: {combat_active: true, enemy_hp_reduced: true}
+
+  - input: "attack"
+    repeat_until: {combat_active: false}
+    max_iterations: 20
+    expect: {xp_gained: true}
+
+  - input: "save"
+    expect: {save_file_exists: true}
+\end{lstlisting}
+
+\subsubsection{Bundled Acceptance Scenarios}
+
+\begin{center}
+\begin{tabular}{lp{9cm}}
+\toprule
+\textbf{Script} & \textbf{Coverage} \\
+\midrule
+\texttt{minimal-run.yaml}  & Two rooms, one combat, one item, save/load \\
+\texttt{combat-full.yaml}  & All combat actions: attack, defend, use item, flee, cast spell \\
+\texttt{leveling.yaml}     & XP crosses level threshold; stat increase verified \\
+\texttt{locked-door.yaml}  & Find key, unlock door, search reveals hidden passage \\
+\texttt{permadeath.yaml}   & Character death in permadeath scenario; game-over state asserted \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Test Doubles Reference}
+
+All fakes live in \texttt{internal/testutil/} and implement the
+same Go interfaces as real implementations.
+
+\begin{center}
+\begin{tabular}{lp{5cm}l}
+\toprule
+\textbf{External System} & \textbf{Test Double} & \textbf{Used in} \\
+\midrule
+LLM (Claude)
+  & \texttt{FakeLLMInterpreter} --- canned action from fixture
+  & Integration \\
+LLM (Claude)
+  & \texttt{FakeLLMNarrator} --- fixture string
+  & Integration \\
+SLM (ollama)
+  & \texttt{httptest.NewServer} serving fixture JSON
+  & Integration \\
+Lux MCP
+  & \texttt{FakeLuxServer} --- records calls, injects events
+  & Integration \\
+Daemon socket
+  & In-process fake transport
+  & Integration \\
+CLI stdin/stdout
+  & \texttt{bytes.Buffer}
+  & Integration \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Verification Beyond Tests}
+
+\subsubsection{Scenario Validation}
+
+\cmd{dungeon validate <file.yaml>} validates a scenario against the
+engine's schema and resolves all room and template references.  Run
+in CI as a pre-check on any changed \texttt{scenarios/*.yaml}.
+This is the safeguard for DM-authored content --- broken references
+are caught before a player encounters them at runtime.
+
+\subsubsection{MCP Schema Contract}
+
+The MCP tool definitions are serialised to
+\texttt{testdata/mcp-schema.json} by a generator.  CI diffs the
+generated schema against the committed version:
+
+\begin{lstlisting}
+go run ./cmd/dump-mcp-schema > /tmp/schema.json
+diff testdata/mcp-schema.json /tmp/schema.json
+\end{lstlisting}
+
+Any accidental API change --- renamed tool, added required argument,
+changed return field --- fails the build before any consumer breaks.
+
+\subsubsection{Race Detection}
+
+\texttt{go test -race} is mandatory on CI for all packages that
+touch the daemon's goroutine model.  The daemon handles concurrent
+MCP connections; a data race here produces silent state corruption,
+which is the hardest class of bug to diagnose in a running game
+session.
+
+\subsubsection{Save Format Forward Compatibility}
+
+When the save format changes, a migration test loads every fixture
+in \texttt{testdata/saves/} (pinned to older format versions) and
+asserts clean migration to the current format.  Old saves must
+never silently corrupt.
+
+\subsection{CI Configuration}
+
+\begin{lstlisting}[title={.github/workflows/test.yml (target layout)}]
+unit-and-integration:
+  - go test -race -count=1 ./...
+  - go test -race -tags integration -count=1 ./...
+  - go test -cover -coverprofile=coverage.out ./internal/engine/...
+  - go tool cover -func=coverage.out   # fail if engine < 90%
+
+e2e:
+  - go build -o dungeon ./cmd/dungeon
+  - go test -tags e2e ./e2e/...
+
+acceptance:
+  runs-on: main and release branches only
+  - go build -o dungeon ./cmd/dungeon
+  - go test -tags acceptance -timeout 10m ./e2e/acceptance/...
+\end{lstlisting}
+
+\subsection{What We Do Not Test Automatically}
+
+\begin{center}
+\begin{tabular}{lp{8cm}}
+\toprule
+\textbf{Thing} & \textbf{Reason} \\
+\midrule
+LLM narration quality     & Non-deterministic; evaluated by human playtest \\
+SLM command accuracy      & Requires real model; evaluated by model eval harness, not CI \\
+Lux visual rendering      & ImGui pixel output; evaluated by human inspection \\
+mcp-proxy (pre-ship)      & Does not exist yet; contract test stubs only \\
+Balance and pacing        & Game design; evaluated by playtesting \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

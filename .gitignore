@@ -6,6 +6,12 @@ prfaq.*
 !prfaq.tex
 !prfaq.bib
 
+# LaTeX build artifacts (docs/)
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+
 # Claude Code local files
 .claude/
 
