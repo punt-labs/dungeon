@@ -1,0 +1,520 @@
+\documentclass[11pt,letterpaper]{article}
+
+% ── Geometry ──────────────────────────────────────────────────────────────────
+\usepackage[margin=1in]{geometry}
+
+% ── Pagination ────────────────────────────────────────────────────────────────
+\usepackage[all]{nowidow}    % Require ≥2 lines on each side of a page break
+\brokenpenalty=10000         % No hyphenated words across page breaks
+\raggedbottom                % Allow uneven page bottoms rather than stretching
+
+% ── Fonts ─────────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage{newpxtext}     % Palatino-based serif (TeX Gyre Pagella)
+\usepackage{newpxmath}     % Matching math font
+
+% ── Colors ────────────────────────────────────────────────────────────────────
+\usepackage[dvipsnames]{xcolor}
+\definecolor{SectionBlue}{HTML}{1B3A5C}
+\definecolor{AccentGray}{HTML}{4A4A4A}
+\definecolor{QuoteBorder}{HTML}{8B9DAF}
+\definecolor{RiskRed}{HTML}{C0392B}
+\definecolor{RiskAmber}{HTML}{E67E22}
+\definecolor{RiskGreen}{HTML}{27AE60}
+\definecolor{BoxBg}{HTML}{F7F8FA}
+
+% ── Tables ────────────────────────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+% ── Boxes ─────────────────────────────────────────────────────────────────────
+\usepackage[framemethod=tikz]{mdframed}
+
+% ── Lists ─────────────────────────────────────────────────────────────────────
+\usepackage{enumitem}
+\usepackage{needspace}
+
+% ── Hyperlinks ────────────────────────────────────────────────────────────────
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=SectionBlue,
+  urlcolor=SectionBlue,
+  citecolor=SectionBlue,
+  pdfauthor={Jim Freeman},
+  pdftitle={PR/FAQ: dungeon},
+  pdfsubject={Working Backwards — Product Discovery},
+}
+
+% ── Bibliography ─────────────────────────────────────────────────────────────
+\usepackage[style=numeric,backend=biber,sorting=none]{biblatex}
+\addbibresource{prfaq.bib}
+
+% ── Section styling ───────────────────────────────────────────────────────────
+\usepackage{titlesec}
+\titleformat{\section}
+  {\needspace{6\baselineskip}\Large\bfseries\color{SectionBlue}}
+  {}
+  {0pt}
+  {}
+
+\titleformat{\subsection}
+  {\needspace{5\baselineskip}\large\bfseries\color{AccentGray}}
+  {}
+  {0pt}
+  {}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{AccentGray}}
+  {}
+  {0pt}
+  {}
+\titlespacing*{\subsubsection}{0pt}{1em}{0.5em}[0pt]
+
+% ── Document stage ───────────────────────────────────────────────────────────
+\newcommand{\prfaqstage}[1]{\def\theprfaqstage{#1}}
+\prfaqstage{shipped}
+
+% ── Document version ─────────────────────────────────────────────────────────
+\newcommand{\prfaqversion}[2]{\def\theprfaqmajor{#1}\def\theprfaqminor{#2}}
+\prfaqversion{1}{0}
+
+% ── Header/footer ────────────────────────────────────────────────────────────
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\textcolor{AccentGray}{Stage: \theprfaqstage{} \enspace\textbar\enspace v\theprfaqmajor.\theprfaqminor}}
+\fancyhead[R]{\footnotesize\textcolor{AccentGray}{\thepage}}
+\renewcommand{\headrulewidth}{0pt}
+
+% ══════════════════════════════════════════════════════════════════════════════
+% Custom environments
+% ══════════════════════════════════════════════════════════════════════════════
+
+% ── \prsection{title} — styled press release section header ──────────────────
+\newcommand{\prsection}[1]{%
+  \vspace{1em}%
+  {\large\bfseries\color{SectionBlue}#1}%
+  \vspace{0.3em}\par%
+}
+
+% ── customerquote — indented, italic customer quote ──────────────────────────
+\newmdenv[
+  topline=false,
+  bottomline=false,
+  rightline=false,
+  linewidth=3pt,
+  linecolor=QuoteBorder,
+  backgroundcolor=BoxBg,
+  innerleftmargin=12pt,
+  innerrightmargin=12pt,
+  innertopmargin=8pt,
+  innerbottommargin=8pt,
+  skipabove=\baselineskip,
+  skipbelow=\baselineskip,
+]{customerquote}
+
+% ── spokespersonquote — indented spokesperson quote ──────────────────────────
+\newmdenv[
+  topline=false,
+  bottomline=false,
+  rightline=false,
+  linewidth=3pt,
+  linecolor=SectionBlue,
+  backgroundcolor=BoxBg,
+  innerleftmargin=12pt,
+  innerrightmargin=12pt,
+  innertopmargin=8pt,
+  innerbottommargin=8pt,
+  skipabove=\baselineskip,
+  skipbelow=\baselineskip,
+]{spokespersonquote}
+
+% ── faqpair — numbered Q&A pair with bold question ─────────────────────────
+\newcounter{faqnum}
+\newenvironment{faqpair}[1]{%
+  \needspace{4\baselineskip}%
+  \vspace{0.5em}%
+  \refstepcounter{faqnum}%
+  \noindent\textbf{\color{SectionBlue}Q\thefaqnum: #1}\par\nopagebreak[4]%
+  \vspace{0.2em}%
+  \begin{adjustwidth}{1em}{0pt}%
+  \setlength{\parindent}{0pt}%
+}{%
+  \end{adjustwidth}%
+  \vspace{0.5em}%
+}
+% ── \faqref{faq:slug} — clickable "FAQ 3" reference ──────────────────────────
+\newcommand{\faqref}[1]{\hyperref[#1]{FAQ~\ref*{#1}}}
+
+% ── \featureitem — numbered, referenceable feature entry ──────────────────────
+\newcounter{featurenum}
+\newcommand{\featureitem}[2]{%
+  \refstepcounter{featurenum}%
+  \item[\textbf{\color{SectionBlue}F\thefeaturenum.}]%
+  \textbf{#1} --- #2%
+}
+\newcommand{\featureref}[1]{\hyperref[#1]{Feature~\ref*{#1}}}
+
+% ── adjustwidth (for faqpair indentation) ────────────────────────────────────
+\usepackage{changepage}
+
+% ══════════════════════════════════════════════════════════════════════════════
+% Document
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{document}
+
+% ── Headline block ───────────────────────────────────────────────────────────
+\begin{center}
+  {\LARGE\bfseries\color{SectionBlue} Open-Source Plugin Brings Infinite Dungeon Crawls\\to Engineers Between Coding Sessions} \\[0.8em]
+  {\large\color{AccentGray} dungeon uses LLM-generated worlds, natural language commands, and ASCII art to fight AI fatigue---one five-minute break at a time}
+\end{center}
+
+\vspace{0.5em}
+
+% ══════════════════════════════════════════════════════════════════════════════
+% PRESS RELEASE
+% ══════════════════════════════════════════════════════════════════════════════
+
+\section*{Press Release}
+
+SAN FRANCISCO --- August 15, 2026 --- Today, Punt Labs released dungeon, a free, open-source Claude Code plugin that drops a roguelike text adventure directly into engineers' terminal sessions. Unlike the vocabulary-limited text adventures of the 1980s, dungeon uses large language models to understand natural language, generate procedurally unique worlds, and render ASCII art on the fly---giving developers a five-minute dungeon crawl that research shows can reduce cognitive fatigue and restore focus (see \faqref{faq:customer-evidence}).
+
+\prsection{Problem}
+
+Engineers using AI coding assistants spend hours in deep terminal sessions, experiencing what Steve Yegge recently called ``AI vampire syndrome''~\cite{yegge2026aivampire}---massive daily fatigue from the constant cognitive load of reviewing, verifying, and directing AI-generated code. UC Berkeley researchers confirmed that AI-assisted work creates ``workload creep, cognitive fatigue, burnout, and weakened decision-making''~\cite{fortune2026ucberkeley}. A Haystack Analytics study found that 83\% of software developers suffer from workplace burnout~\cite{haystack2021burnout}, and the rise of AI-assisted coding is making it worse, not better~\cite{hbr2026aiintensifies}.
+
+The available coping mechanisms---switching to a browser tab, scrolling social media, or stepping away entirely---break flow state and make returning to focused work harder. Attention Restoration Theory~\cite{kaplan1995art} suggests that directed attention fatigue recovers not through passive rest but through engagement with activities that provide involuntary fascination---absorption without cognitive effort. Engineers need a break that recharges directed attention without the context-switching overhead of leaving the terminal (see \faqref{faq:why-now}).
+
+\prsection{Solution}
+
+dungeon embeds a roguelike text adventure into the terminal where engineers already work. Type \texttt{/d} to take your next turn---no parser vocabulary to memorize, no syntax to learn. The LLM generates dungeons, encounters, items, and narrative on the fly, so no two sessions are alike. Players choose their adventure: a haunted library, a derelict space station, a classic Tolkien-esque cavern, or whatever they describe. The game state persists across sessions automatically; when you're ready for a fresh quest, \texttt{/dungeon:new} starts a new world.
+
+Attention Restoration Theory predicts that activities providing ``soft fascination''---gentle, absorbing engagement---restore the directed attention depleted by sustained analytical work~\cite{kaplan1995art}. A roguelike dungeon crawl fits this model: it is absorbing enough to displace the mental residue of code review, but low-stakes enough to release rather than consume cognitive resources. Research on gaming as recovery from work stress confirms that game play pursued with harmonious passion facilitates cognitive resource accumulation~\cite{kocak2024gaming}. dungeon is designed for exactly that cadence---type \texttt{/d}, take a turn, go back to coding. Short enough to refresh, long enough to engage, and always waiting where you left off (see \faqref{faq:competitors}).
+
+\prsection{Customer Quote}
+
+\begin{customerquote}
+\textit{``Before dungeon, my breaks meant doomscrolling Reddit or staring at the wall. I'd come back to my session feeling worse. Now I type /d, take a turn, maybe solve a puzzle or find a magic sword, and go right back to coding. Sometimes I take one turn. Sometimes I take five. Either way I come back with fresh eyes. It's absurd that killing fictional orcs is better for my productivity than anything else I've tried, but here we are.''}
+
+\raggedleft --- \textbf{Marcus Chen}, Senior Platform Engineer at Anthropic
+\end{customerquote}
+
+\prsection{Getting Started}
+
+Getting started takes one command. Engineers run the install script:
+
+\begin{center}
+{\small\texttt{curl -sL https://raw.githubusercontent.com/punt-labs/dungeon/main/install.sh | bash}}
+\end{center}
+
+\noindent Then type \texttt{/d} in any Claude Code session, and within thirty seconds they are standing at the entrance of a procedurally generated dungeon. Every subsequent \texttt{/d} picks up exactly where they left off. There is no account to create, no API key to configure, and no subscription to manage---the game runs entirely within the existing Claude Code session.
+
+\prsection{Spokesperson Quote}
+
+\begin{spokespersonquote}
+``We built dungeon because the irony was hard to ignore---the tool that makes engineers most productive is also the one that drains them most. The fix isn't another productivity feature. It's permission to play. By putting the game where engineers already work, in the terminal, with the same LLM they're already talking to, we removed every barrier between `I need a break' and actually taking one.''
+
+\raggedleft --- \textbf{Jim Freeman}, Creator of dungeon, Punt Labs
+\end{spokespersonquote}
+
+\prsection{Call to Action}
+
+dungeon is available now at \href{https://github.com/punt-labs/dungeon}{github.com/punt-labs/dungeon}. The plugin is free, open source under the MIT license, and installs in under ten seconds. Star the repository to follow development and join the community of engineers who believe that play and productivity are not opposites.
+
+\noindent Contact: \href{mailto:hello@punt-labs.com}{hello@punt-labs.com}
+
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+% FREQUENTLY ASKED QUESTIONS
+% ══════════════════════════════════════════════════════════════════════════════
+
+\section*{Frequently Asked Questions}
+
+% ── External FAQs (Customer-facing) ──────────────────────────────────────────
+
+\subsection*{External FAQs}
+
+\begin{faqpair}{What is dungeon and who is it for?}\label{faq:what-is-it}
+  dungeon is a free, open-source Claude Code plugin that turns coding breaks into roguelike text adventures. It is built for engineers who spend long sessions in Claude Code---especially those who grew up on UNIX terminals and remember Zork, Wizardry, and Rogue---and want a way to recharge without leaving the terminal. Type \texttt{/d}, take a turn in a procedurally generated dungeon, and go back to coding.
+\end{faqpair}
+
+\begin{faqpair}{How is this different from just playing a game in another terminal tab?}\label{faq:vs-other-games}
+  Context switching is the enemy. Opening another terminal to play nethack, launching a browser game, or picking up your phone costs cognitive overhead---the same overhead that makes ``taking a break'' feel like it makes things worse. dungeon lives inside the same Claude Code session where you are already working. Type \texttt{/d}, take one turn, continue coding. No window switching, no lost context.
+
+  The game is also LLM-powered, so it understands natural language instead of requiring memorized parser commands. You type what you want to do (``search the bookshelf for hidden passages''), not what the parser expects (``EXAMINE BOOKSHELF'').
+\end{faqpair}
+
+\begin{faqpair}{How do I get started?}\label{faq:getting-started}
+  One command to install, one command to play:
+
+  \begin{enumerate}[nosep]
+    \item Run the install script:\\
+    {\footnotesize\texttt{curl -sL https://raw.githubusercontent.com/punt-labs/dungeon/main/install.sh | bash}}
+    \item Type \texttt{/d} in any Claude Code session.
+    \item You are in a dungeon. What do you do?
+  \end{enumerate}
+
+  Every subsequent \texttt{/d} picks up where you left off. Type \texttt{/dungeon:new} when you want a fresh world.
+\end{faqpair}
+
+\begin{faqpair}{How much does it cost?}\label{faq:cost}
+  Nothing. dungeon is free and open source under the MIT license. It uses the Claude API through your existing Claude Code session---no additional API keys, subscriptions, or accounts required.
+\end{faqpair}
+
+\begin{faqpair}{Is the content safe for work?}\label{faq:content-safety}
+  Yes. dungeon enforces content guardrails that keep all generated content appropriate for professional settings and all ages. The LLM is instructed to generate fantasy adventure content---monsters, puzzles, treasure, traps---without graphic violence, horror, sexual content, or other mature themes. Content filtering runs on every generated response before it reaches the player.
+\end{faqpair}
+
+\begin{faqpair}{What happens to my game data?}\label{faq:data}
+  Game state is stored locally on your machine in the plugin's data directory. No game data is sent to external servers beyond the Claude API calls needed to generate the game (which are part of your existing Claude Code session). Save files are plain text and can be inspected or deleted at any time.
+\end{faqpair}
+
+% ── Internal FAQs (Business-facing) ──────────────────────────────────────────
+
+\newpage
+\subsection*{Internal FAQs}
+
+\subsubsection*{Value \& Market}
+
+\begin{faqpair}{What is the total addressable market?}\label{faq:tam}
+  Bottoms-up estimate. Claude Code had 115,000 developers as of July 2025~\cite{ppcland2025claudecode}. The broader Claude platform has seen rapid enterprise adoption, with Business of Apps reporting significant usage growth through 2025--2026~\cite{businessofapps2026claude}.
+
+  \textbf{Projection (August 2026):} Assuming Claude Code user growth between 2x (low) and 5x (high) over the 13 months from July 2025 to August 2026, the user base ranges from 230,000 to 575,000. Midpoint estimate: \textasciitilde{}350,000 Claude Code users. These growth rates are assumptions---Anthropic does not publish Claude Code user counts regularly.
+
+  At a 5--15\% install rate (typical range for popular free plugins in developer tool ecosystems), that yields 17,500 to 86,000 installs. The broader market includes all AI coding assistant users (GitHub Copilot, Cursor, Windsurf), but the initial product targets Claude Code exclusively.
+
+  This is a free, open-source product. TAM is measured in users and GitHub stars, not revenue. The adjacent opportunity is establishing Punt Labs as a recognized name in the Claude Code ecosystem.
+\end{faqpair}
+
+\begin{faqpair}{What evidence do we have that customers want this?}\label{faq:customer-evidence}
+  Hypothesis stage---no primary customer data yet. The evidence is indirect but convergent:
+
+  \textbf{Evidence that the problem exists:}
+  \begin{itemize}[nosep]
+    \item Steve Yegge's ``AI Vampire'' essay (February 2026) resonated widely, suggesting AI fatigue is broadly felt~\cite{yegge2026aivampire}.
+    \item UC Berkeley researchers confirmed AI causes ``workload creep, cognitive fatigue, burnout, and weakened decision-making''~\cite{fortune2026ucberkeley}.
+    \item Haystack Analytics found 83\% of software developers suffer from workplace burnout~\cite{haystack2021burnout}. A 2025 study using the validated Maslach Burnout Inventory found 22\% of engineering professionals at critical burnout levels~\cite{leaddev2025burnout}.
+    \item Harvard Business Review documented that AI ``intensifies'' work rather than reducing it~\cite{hbr2026aiintensifies}.
+  \end{itemize}
+
+  \textbf{Evidence that the solution approach works:}
+  \begin{itemize}[nosep]
+    \item AI Dungeon proved demand for LLM-powered text adventures---100,000 players in its first week, 1.5 million within six months~\cite{aidungeon2019, wikipedia2024aidungeon}.
+    \item Attention Restoration Theory predicts that ``soft fascination'' activities---absorbing but low-effort---restore the directed attention depleted by sustained analytical work~\cite{kaplan1995art}. A dungeon crawl fits this model better than passive scrolling.
+    \item Research on gaming as work recovery found that video game play facilitates cognitive resource accumulation when pursued with harmonious (non-compulsive) passion~\cite{kocak2024gaming}.
+    \item The Bash Screensavers project proved developer appetite for terminal entertainment~\cite{biggo2025bashscreensavers}.
+    \item The roguelike market is growing at 8.7\% CAGR~\cite{datainsights2025roguelike}.
+  \end{itemize}
+
+  \textbf{What is not yet validated:} Whether engineers will actually play a game \emph{during work hours} inside their coding tool. The theoretical case is strong---attention restoration through absorbing non-work activity---but this specific context (game embedded in a coding assistant) has no precedent. This is the core value risk.
+\end{faqpair}
+
+\begin{faqpair}{Who are the competitors and why will we win?}\label{faq:competitors}
+  \textbf{AI Dungeon}~\cite{aidungeon2019}: The closest precedent. LLM-powered text adventure that reached 100,000 players in its first week and 1.5 million within six months~\cite{wikipedia2024aidungeon}. However: standalone consumer app, not embedded in a development tool. Retired from Steam in March 2024. Targeted general gamers, not developers taking work breaks.
+
+  \textbf{Classic roguelikes} (nethack, Angband, DCSS): Available in the terminal but require a separate window, have steep learning curves, and demand long sessions incompatible with five-minute breaks.
+
+  \textbf{Browser games, Reddit, social media}: The current ``break'' behavior for most developers. High context-switching cost. These provide distraction but not the ``soft fascination'' that Attention Restoration Theory identifies as restorative~\cite{kaplan1995art}---passive scrolling does not engage the mind deeply enough to displace the cognitive residue of the previous task. Any break is better than no break, but an absorbing activity is better than a passive one.
+
+  \textbf{Bash Screensavers}: Terminal entertainment that proved the appetite, but passive rather than interactive~\cite{biggo2025bashscreensavers}.
+
+  \textbf{Why we win:} We are not competing for ``game time''---we are competing for ``break time.'' No existing product is an interactive, LLM-powered game embedded in an AI coding assistant. The \texttt{/d} command has lower activation energy than any alternative.
+
+  \textbf{If a competitor saw this press release:} AI Dungeon could build a Claude Code plugin, but they exited their platform and are not in developer tools. Anthropic could build this themselves, but terminal games are orthogonal to their mission. The moat is community and brand, not technology---first to build a beloved plugin with a loyal player community wins.
+\end{faqpair}
+
+\begin{faqpair}{What is the customer acquisition strategy?}\label{faq:acquisition}
+  Organic distribution through free, open-source channels:
+
+  \begin{enumerate}[nosep]
+    \item \textbf{GitHub discovery}: README with compelling ASCII art screenshots and a one-line install command.
+    \item \textbf{Hacker News launch}: The ``AI fatigue $\to$ dungeon crawling'' angle is catnip for HN.
+    \item \textbf{Claude Code plugin marketplace}: Listed alongside productivity plugins, standing out as the fun one.
+    \item \textbf{Word of mouth}: Engineers showing colleagues a dungeon in their terminal. ``Wait, you can do that?''
+  \end{enumerate}
+
+  No paid acquisition. The product is free; the only cost of a new user is zero.
+\end{faqpair}
+
+\begin{faqpair}{What is the next step to validate this vision?}\label{faq:validation}
+  Ship an MVP to 20 Claude Code users and measure three things over two weeks:
+
+  \begin{enumerate}[nosep]
+    \item \textbf{Repeat usage}: Do they play more than once? Target: 40\%+ return within one week.
+    \item \textbf{Session length}: Do they play for 5--15 minutes, or abandon after one turn? Target: median session of 3+ turns.
+    \item \textbf{Self-reported effect}: Do they feel refreshed? Quick post-session survey.
+  \end{enumerate}
+
+  If repeat usage exceeds 40\% and session length matches the microbreak window, the concept is validated. If not, we learn whether the problem is the game (not fun enough) or the context (people won't play at work).
+\end{faqpair}
+
+\subsubsection*{Technical}
+
+\begin{faqpair}{What are the major technical risks?}\label{faq:tech-risks}
+  \begin{enumerate}[nosep]
+    \item \textbf{Content safety}: The LLM generates narrative content. Risk that adversarial prompts or edge-case game states produce inappropriate content. Mitigation: system prompt guardrails, output content filtering, community reporting mechanism. This is the highest-priority technical risk.
+    \item \textbf{Game coherence}: LLM-generated narrative may be inconsistent across sessions---forgetting items, contradicting earlier events, breaking continuity. Mitigation: structured game state (inventory, map, event history) stored locally and fed to the LLM as context on each turn.
+    \item \textbf{Latency}: Each \texttt{/d} turn requires an LLM API call. If response time exceeds 5--10 seconds, the experience feels sluggish for a ``quick break.'' Mitigation: compact prompts, minimal context windows, Claude's fast output mode.
+    \item \textbf{Token consumption}: The game uses the player's Claude Code session tokens. Heavy play could consume meaningful token budget. Mitigation: keep prompts compact, cache world descriptions locally, make token usage transparent to the player.
+  \end{enumerate}
+\end{faqpair}
+
+\begin{faqpair}{What dependencies exist?}\label{faq:dependencies}
+  \begin{itemize}[nosep]
+    \item \textbf{Claude Code plugin API}: Depends on the plugin system remaining stable. Currently in active development by Anthropic.
+    \item \textbf{Claude API}: Core dependency for all content generation. Risk is pricing changes or rate limits.
+    \item \textbf{LanceDB}: Local embedded vector store for game state persistence and semantic search of world history. Lightweight, no server dependency. Already present in the project.
+  \end{itemize}
+
+  No dependencies on other teams. Single-developer project with no external coordination required.
+\end{faqpair}
+
+\begin{faqpair}{What is the estimated development timeline?}\label{faq:timeline}
+  \begin{itemize}[nosep]
+    \item \textbf{Phase 1} (2 weeks): Core game loop---\texttt{/d} command, basic dungeon generation, turn-based interaction, save/load state with LanceDB.
+    \item \textbf{Phase 2} (2 weeks): Content safety guardrails, ASCII art rendering, adventure theme selection (\texttt{/dungeon:new}).
+    \item \textbf{Phase 3} (1 week): Polish, documentation, install script, GitHub release.
+  \end{itemize}
+
+  MVP in five weeks. If timeline compresses, cut ASCII art and theme selection from Phase 2---the core game loop works without them.
+\end{faqpair}
+
+\begin{faqpair}{If this succeeds, what breaks first?}\label{faq:scaling}
+  Nothing at the infrastructure level---the plugin is stateless, runs locally, and requires no servers. At scale, the pressures are:
+
+  \begin{enumerate}[nosep]
+    \item \textbf{Token consumption}: Each \texttt{/d} turn consumes tokens from the player's Claude Code session. Assuming 500 tokens per turn and 10 turns per day, that is roughly 5,000 tokens per active user per day. At 50,000 active users, aggregate consumption is meaningful---but it is distributed across individual accounts, not centralized. The risk is player perception: if users feel the game ``wastes'' their token budget, they will stop playing. Mitigation: transparent token usage reporting per session.
+    \item \textbf{LanceDB storage}: Game state grows with play. A long-running game might accumulate several megabytes of event history. At 50,000 users this is local disk usage, not a shared resource---but semantic search over large histories could slow down if not pruned. Mitigation: cap event history at a rolling window.
+    \item \textbf{Maintainer capacity}: At 1,000+ GitHub stars, issue volume and feature requests will exceed solo maintainer bandwidth. Mitigation: clear contribution guidelines, aggressive scope discipline via the Won't Do list, and community co-maintainers recruited from active contributors.
+    \item \textbf{Model evolution}: As Claude models are updated, game prompts may need tuning to maintain narrative quality and content safety. Mitigation: version-pinned prompts with regression testing.
+  \end{enumerate}
+\end{faqpair}
+
+\begin{faqpair}{What does the cost structure look like at steady state?}\label{faq:cost-structure}
+  dungeon has zero infrastructure cost---no servers, no databases, no hosted APIs. The real cost is maintainer time:
+
+  \begin{itemize}[nosep]
+    \item \textbf{Pre-launch}: \textasciitilde{}5 weeks of development (the entire build).
+    \item \textbf{At 500 stars}: 2--4 hours per week covering issue triage, prompt maintenance as Claude models evolve, and community engagement.
+    \item \textbf{At 1,000+ users}: 4--8 hours per week. Maintainer capacity becomes the constraint.
+  \end{itemize}
+
+  The plugin is designed to be self-sustaining: the codebase is plugin skills, a LanceDB store, and prompt files---no backend, no API keys beyond the user's existing Claude Code session. If Punt Labs disappears tomorrow, the plugin continues working. This zero-infrastructure architecture makes it trivially forkable. The opportunity cost is hours not spent on other Punt Labs projects---acceptable while the plugin establishes ecosystem presence, re-evaluate if other priorities demand the same hours.
+\end{faqpair}
+
+\subsubsection*{Business}
+
+\begin{faqpair}{What is the revenue model?}\label{faq:revenue}
+  None. dungeon is free, open source under the MIT license. Strategic value to Punt Labs:
+
+  \begin{itemize}[nosep]
+    \item Establish reputation in the Claude Code plugin ecosystem.
+    \item Generate GitHub stars and community goodwill.
+    \item Create a platform for future Punt Labs plugins that may have commercial models.
+    \item Demonstrate that Claude Code plugins can be experiences, not just productivity tools.
+  \end{itemize}
+\end{faqpair}
+
+\begin{faqpair}{What are the key metrics for success?}\label{faq:metrics}
+  \begin{tabularx}{\linewidth}{@{} l l l @{}}
+  \toprule
+  \textbf{Metric} & \textbf{Target (3 months)} & \textbf{Kill threshold} \\
+  \midrule
+  GitHub stars & 1,000 & $<$200 \\
+  Unique installs & 5,000 & $<$500 \\
+  Weekly repeat usage & 40\%+ & $<$15\% \\
+  Median session length & 5--15 min & $<$1 min \\
+  Content safety incidents & 0 & Any unresolved \\
+  \bottomrule
+  \end{tabularx}
+
+  \vspace{0.5em}
+  If stars are below 200 and installs below 500 after three months, the concept does not resonate and the project should be archived or pivoted.
+\end{faqpair}
+
+\begin{faqpair}{Why now? What has changed?}\label{faq:why-now}
+  Three things converged:
+
+  \begin{enumerate}[nosep]
+    \item \textbf{AI fatigue is newly named.} Steve Yegge's ``AI Vampire'' essay (February 2026) put a label on what developers were feeling~\cite{yegge2026aivampire}. UC Berkeley research validated it~\cite{fortune2026ucberkeley}. The problem is legible for the first time.
+    \item \textbf{Claude Code's plugin ecosystem is maturing.} The platform now supports the kind of interactive, persistent, slash-command-driven plugin that dungeon requires.
+    \item \textbf{LLMs are good enough for games.} Claude's narrative generation is qualitatively better than what was available when AI Dungeon launched with GPT-2 in 2019~\cite{aidungeon2019}. Natural language understanding, coherent multi-turn narrative, and content safety capabilities have all crossed the threshold needed for a genuinely enjoyable game experience.
+  \end{enumerate}
+\end{faqpair}
+
+% ══════════════════════════════════════════════════════════════════════════════
+% FOUR RISKS ASSESSMENT
+% ══════════════════════════════════════════════════════════════════════════════
+
+\newpage
+\section*{Risk Assessment}
+
+\renewcommand{\arraystretch}{1.6}
+\begin{tabularx}{\textwidth}{@{} l l X @{}}
+\toprule
+\textbf{\color{SectionBlue}Risk} & \textbf{\color{SectionBlue}Rating} & \textbf{\color{SectionBlue}Assessment} \\
+\midrule
+Value      & \textcolor{RiskAmber}{Medium} & The problem (AI fatigue) is real and well-documented. The untested assumption is whether engineers will play a game \emph{during work hours} inside their coding tool. AI Dungeon's 1.5M users proves demand for LLM text adventures, but that was a standalone consumer product, not an embedded work break. See \faqref{faq:customer-evidence}. \\
+Usability  & \textcolor{RiskAmber}{Medium} & Activation friction is near zero (\texttt{/d}). But activation is not the risk---retention is. Whether the LLM generates narrative that is coherent, fun, and game-like rather than chatbot-like is entirely unvalidated. AI Dungeon struggled with narrative coherence at scale. Latency above 5 seconds would undermine the ``quick break'' experience. See \faqref{faq:tech-risks}. \\
+Feasibility & \textcolor{RiskAmber}{Medium} & Core components exist: Claude API, LanceDB, plugin system. No novel technology for the game loop. However, content safety in interactive LLM fiction is not a solved problem---AI Dungeon's content moderation struggles led to provider conflicts and eventual Steam retirement~\cite{ai212023latitude}. A solo developer implementing robust guardrails for a tool used in professional settings carries real risk. See \faqref{faq:tech-risks}. \\
+Viability  & \textcolor{RiskGreen}{Low} & Free, open-source product with no revenue expectations. The only cost is development time. Viability risk is limited to opportunity cost---is this the best use of Punt Labs' time for building ecosystem reputation? See \faqref{faq:revenue}. \\
+\bottomrule
+\end{tabularx}
+\renewcommand{\arraystretch}{1.0}
+
+% ══════════════════════════════════════════════════════════════════════════════
+% FEATURE APPENDIX
+% ══════════════════════════════════════════════════════════════════════════════
+
+\newpage
+\section*{Feature Appendix}
+
+Defines the scope boundary for the product. Every feature is explicitly categorized to prevent scope creep and force prioritization decisions upfront.
+
+\subsection*{Must Do}
+
+Features that are essential for launch. Without these, the product does not solve the core problem.
+
+\begin{enumerate}[nosep,leftmargin=2.5em]
+  \featureitem{Core game loop}{the \texttt{/d} command triggers a turn-based dungeon crawl---describe an action in natural language, receive a narrated outcome}\label{feat:game-loop}
+  \featureitem{Natural language input}{players type what they want to do in plain English; no parser vocabulary or command syntax to memorize}\label{feat:nlp}
+  \featureitem{Procedural world generation}{the LLM generates dungeons, encounters, items, and narrative on each turn; no two sessions are alike}\label{feat:procgen}
+  \featureitem{Persistent game state}{game saves automatically to local storage (LanceDB) and resumes on the next \texttt{/d}; \texttt{/dungeon:new} starts a fresh world}\label{feat:save-state}
+  \featureitem{Content safety guardrails}{system prompts and output filtering enforce SFW content appropriate for professional settings and all ages}\label{feat:content-safety}
+  \featureitem{Curl install script}{one-command installation from GitHub; no manual configuration or dependency management}\label{feat:install}
+\end{enumerate}
+
+\subsection*{Should Do}
+
+Features that meaningfully improve the product but are not launch-blocking. Candidates for fast follow-up.
+
+\begin{enumerate}[nosep,leftmargin=2.5em]
+  \featureitem{ASCII art rendering}{dungeon maps, monsters, items, and scenes rendered in ASCII art within the terminal}\label{feat:ascii-art}
+  \featureitem{Adventure theme selection}{players describe the kind of world they want when starting a new game---haunted library, space station, classic fantasy}\label{feat:themes}
+  \featureitem{Character progression}{levels, inventory, stats, and abilities that persist across sessions and create a sense of growth}\label{feat:progression}
+  \featureitem{World memory via LanceDB}{semantic search of past events and locations to maintain narrative coherence across long-running games}\label{feat:world-memory}
+\end{enumerate}
+
+\subsection*{Won't Do}
+
+Features explicitly excluded. Naming what you won't build is as important as naming what you will---it prevents scope creep and clarifies the product's identity.
+
+\begin{enumerate}[nosep,leftmargin=2.5em]
+  \featureitem{Multiplayer}{adds networking complexity and social dynamics without solving the core problem of solo break-time recovery; the game is a personal retreat, not a social platform}\label{feat:no-multiplayer}
+  \featureitem{Graphical rendering}{the terminal is the medium; a GUI defeats the purpose and breaks the ``stay in your coding environment'' value proposition}\label{feat:no-gui}
+  \featureitem{Leaderboards or competitive features}{this is a personal break, not a competition; adding rankings would create pressure that undermines the relaxation goal}\label{feat:no-leaderboards}
+  \featureitem{Mobile or web client}{the product is a Claude Code plugin, not a standalone game; scope expansion to other platforms would dilute focus and compete with established games}\label{feat:no-mobile}
+  \featureitem{Monetization infrastructure}{free and open source is the strategic choice; adding payment systems contradicts the community-first positioning}\label{feat:no-monetization}
+\end{enumerate}
+
+% ══════════════════════════════════════════════════════════════════════════════
+% REFERENCES
+% ══════════════════════════════════════════════════════════════════════════════
+
+\newpage
+\printbibliography[title={References}]
+
+\end{document}
