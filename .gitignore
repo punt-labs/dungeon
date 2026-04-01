@@ -19,7 +19,6 @@ docs/*.toc
 # MCP server dependencies
 mcp/node_modules/
 .biff.local
-.envrc
 
 # Scratch/temp directory (TMPDIR set via .envrc)
 .tmp/
