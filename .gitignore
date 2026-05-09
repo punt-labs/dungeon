@@ -12,14 +12,15 @@ docs/*.log
 docs/*.out
 docs/*.toc
 
-# Claude Code local files
-.claude/
-!.claude/settings.json
+# Local-only files (machine-specific, per-user)
+*.local
+*.local.*
 
 # MCP server dependencies
 mcp/node_modules/
-.biff.local
 
 # Scratch/temp directory (TMPDIR set via .envrc)
 .tmp/
-.envrc.local
+
+# Copilot CLI session logs
+copilot-session-*.md
