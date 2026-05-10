@@ -68,7 +68,7 @@ This project uses **beads** (`bd`) for issue tracking. If an issue discovered he
 
 Identity: `agent: claude` per `.punt-labs/ethos.yaml`. The dungeon plugin is prompt-only — most edits are direct work on `skills/dungeon/SKILL.md` and the adventure scripts. Sub-agents are useful for prompt review, narrative consistency, and game-mechanics correctness; missions are useful when a change touches the engine prompt, multiple scripts, and the README together.
 
-Worker and evaluator must be distinct handles with no shared role. Claude is the leader, never the evaluator.
+Within each row, the worker and evaluator must be distinct handles. Claude is the leader, never the evaluator.
 
 | Task type | Worker | Evaluator |
 |-----------|--------|-----------|
