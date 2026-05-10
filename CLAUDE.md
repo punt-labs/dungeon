@@ -64,6 +64,26 @@ Do **not** merge immediately after creating a PR. Expect **2–6 review cycles**
 
 This project uses **beads** (`bd`) for issue tracking. If an issue discovered here affects multiple repos or requires a standards change, escalate to a [punt-kit bead](https://github.com/punt-labs/punt-kit) instead (see [bead placement scheme](../CLAUDE.md#where-to-create-a-bead)).
 
+## Ethos & Delegation
+
+Identity: `agent: claude` per `.punt-labs/ethos.yaml`. The dungeon plugin is prompt-only — most edits are direct work on `skills/dungeon/SKILL.md` and the adventure scripts. Sub-agents are useful for prompt review, narrative consistency, and game-mechanics correctness; missions are useful when a change touches the engine prompt, multiple scripts, and the README together.
+
+Worker and evaluator must be distinct handles with no shared role. Claude is the leader, never the evaluator.
+
+| Task type | Worker | Evaluator |
+|-----------|--------|-----------|
+| Skill prompt (SKILL.md) edits | `claude` (leader, direct) | `mdm` (McIlroy) — pipeline composition, prompt-as-tool design |
+| Adventure script (`scripts/*.md`) — new world | `claude` (leader, direct) | `gax` (Gygax — game-team) for balance, narrative shape |
+| Adventure script — voice / tone consistency | `claude` (leader, direct) | `archivist` or `cryptkeeper` (game-team, when available) |
+| Game mechanic / rule change | `claude` (leader) | `gax` then `mdm` — rule design then prompt clarity |
+| MCP tool (state persistence) | `bwk` or `rmh` depending on language | `mdm` (CLI sensibility) or `djb` (input validation) |
+| README / PR/FAQ update | `claude` (leader, direct) | `mcg` (Cagan) — product narrative |
+| User-facing onboarding flow | `claude` (leader, direct) | `dna` (Norman) — UX cognition / affordances |
+
+The full org roster is available via `ethos identity list`. Game-team identities (`cht`, `gax`, `archivist`, `cryptkeeper`) are repo-local in cryptd and can be referenced when their game-design perspective matters here.
+
+Use the `docs` pipeline for prompt-only changes; the `quick` pipeline for single-file mechanical fixes; the `product` pipeline when adding a new player-facing capability that needs PR/FAQ validation.
+
 ## Standards References
 
 - [GitHub](https://github.com/punt-labs/punt-kit/blob/main/standards/github.md)
