@@ -102,7 +102,10 @@
       "mcp__plugin_biff_tty__*",
       "mcp__plugin_github_github__*",
       "mcp__plugin_quarry_quarry__*",
-      "mcp__quarry__*"
+      "mcp__quarry__*",
+      "Read",
+      "Edit",
+      "Write"
     ],
     "deny": [
       "Bash(curl:*)",
@@ -124,8 +127,31 @@
       "Bash(wget:*)",
       "Edit(.env)",
       "Edit(.envrc)",
+      "Edit(.envrc.local)",
+      "Edit(~/.ssh/**)",
+      "Edit(~/.aws/**)",
+      "Edit(~/.gnupg/**)",
+      "Edit(~/.config/gh/**)",
+      "Edit(~/.punt-labs/**)",
+      "Edit(/etc/**)",
+      "Read(.env)",
+      "Read(.envrc)",
+      "Read(.envrc.local)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.punt-labs/**)",
+      "Read(/etc/**)",
       "Write(.env)",
-      "Write(.envrc)"
+      "Write(.envrc)",
+      "Write(.envrc.local)",
+      "Write(~/.ssh/**)",
+      "Write(~/.aws/**)",
+      "Write(~/.gnupg/**)",
+      "Write(~/.config/gh/**)",
+      "Write(~/.punt-labs/**)",
+      "Write(/etc/**)"
     ]
   }
 }
