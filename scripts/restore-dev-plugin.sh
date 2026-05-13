@@ -32,8 +32,8 @@ git -C "$REPO_ROOT" checkout "$RESTORE_REF" -- "$PLUGIN_JSON"
 # Restore commands/ only if it exists at the restore ref
 if [ -n "$(git -C "$REPO_ROOT" ls-tree "$RESTORE_REF" -- commands/)" ]; then
   git -C "$REPO_ROOT" checkout "$RESTORE_REF" -- commands/
+  git -C "$REPO_ROOT" add commands/
 fi
 
 git -C "$REPO_ROOT" add "$PLUGIN_JSON"
-git -C "$REPO_ROOT" add commands/ 2>/dev/null || true
 git -C "$REPO_ROOT" commit --no-verify -m "chore: restore dev plugin state"
