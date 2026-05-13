@@ -27,14 +27,13 @@ if ! git -C "$REPO_ROOT" rev-parse "$RESTORE_REF" >/dev/null 2>&1; then
 fi
 
 # Restore plugin.json from the specified commit
-git -C "$REPO_ROOT" checkout "$RESTORE_REF" -- .claude-plugin/plugin.json
+git -C "$REPO_ROOT" checkout "$RESTORE_REF" -- "$PLUGIN_JSON"
 
 # Restore commands/ only if it exists at the restore ref
-if git -C "$REPO_ROOT" ls-tree -d --name-only "$RESTORE_REF" -- commands/ >/dev/null 2>&1 \
-   && [ -n "$(git -C "$REPO_ROOT" ls-tree "$RESTORE_REF" -- commands/)" ]; then
+if [ -n "$(git -C "$REPO_ROOT" ls-tree "$RESTORE_REF" -- commands/)" ]; then
   git -C "$REPO_ROOT" checkout "$RESTORE_REF" -- commands/
 fi
 
-git -C "$REPO_ROOT" add .claude-plugin/plugin.json
+git -C "$REPO_ROOT" add "$PLUGIN_JSON"
 git -C "$REPO_ROOT" add commands/ 2>/dev/null || true
 git -C "$REPO_ROOT" commit --no-verify -m "chore: restore dev plugin state"
