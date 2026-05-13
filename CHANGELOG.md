@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Removed
+
+- `/d` shorthand command — use `/dungeon` instead
+
 ## [0.1.4] - 2026-05-13
 
 ### Added
