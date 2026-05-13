@@ -1,7 +1,7 @@
 {
   "name": "dungeon-dev",
-  "description": "A text adventure game engine for Claude Code. Play scripted dungeon crawls, UNIX-themed adventures, and more — powered by Claude as the game master.",
-  "version": "0.1.3",
+  "description": "A text adventure game engine for Claude Code. Play scripted dungeon crawls, UNIX-themed adventures, and more \u2014 powered by Claude as the game master.",
+  "version": "0.1.4",
   "author": {
     "name": "Punt Labs",
     "email": "hello@punt-labs.com"
@@ -10,7 +10,9 @@
     "grimoire": {
       "type": "stdio",
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs"]
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs"
+      ]
     }
   }
 }
