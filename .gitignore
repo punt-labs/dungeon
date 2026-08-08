@@ -24,3 +24,6 @@ mcp/node_modules/
 
 # Copilot CLI session logs
 copilot-session-*.md
+
+# Quarry session-transcript captures (pkit-kcps)
+.punt-labs/quarry/captures/
