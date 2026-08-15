@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Removed the SSH `.punt-labs/ethos` git submodule that broke keyless
+  `git clone --recurse-submodules` plugin installs. Claude Code clones this
+  plugin with submodules; the `git@github.com:punt-labs/team.git` URL aborted
+  the clone with `Permission denied (publickey)` for any user without a GitHub
+  SSH key. All ethos config (`.gitmodules`, the submodule, `.punt-labs/ethos.yaml`)
+  is removed and `.punt-labs/` is now gitignored — agents resolve identity from
+  the global `~/.punt-labs/ethos/` instead.
+
 ## [0.1.5] - 2026-05-13
 
 ### Removed
