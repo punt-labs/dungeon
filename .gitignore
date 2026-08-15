@@ -21,13 +21,14 @@
 .*.local.*
 
 # --- Punt Labs runtime state (never commit) ---
-.punt-labs/local/
-.punt-labs/**/local/**
-.punt-labs/**/*.local.*
-.punt-labs/quarry/captures/
-.punt-labs/vox/ephemeral/
-.punt-labs/vox/vox.local.md
-.punt-labs/lux.md
+# This plugin is cloned onto every consumer's machine by Claude Code when they
+# install it from the marketplace, and it clones with submodules. Nothing under
+# `.punt-labs/` should ship: the ethos submodule (git@ SSH URL) aborted keyless
+# `--recurse-submodules` clones outright, and the rest is per-repo tooling state
+# (vox, lux, quarry, beads) plus internal identity config. Agents resolve
+# identity from the global `~/.punt-labs/ethos/` at runtime, so this repo tracks
+# no ethos or `.punt-labs/` content at all. Ignore the whole subtree.
+.punt-labs/
 
 # --- Claude Code runtime state ---
 .claude/*
