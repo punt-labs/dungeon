@@ -66,7 +66,7 @@ This project uses **beads** (`bd`) for issue tracking. If an issue discovered he
 
 ## Ethos & Delegation
 
-Identity: `agent: claude` per `.punt-labs/ethos.yaml`. The dungeon plugin is prompt-only — most edits are direct work on `skills/dungeon/SKILL.md` and the adventure scripts. Sub-agents are useful for prompt review, narrative consistency, and game-mechanics correctness; missions are useful when a change touches the engine prompt, multiple scripts, and the README together.
+Identity: `agent: claude`, resolved from the global `~/.punt-labs/ethos/` at runtime. This repo tracks **no** ethos config or `.punt-labs/` content: Claude Code clones the plugin onto every consumer's machine (with submodules), so an in-repo ethos submodule broke keyless installs and shipped internal identity data to strangers. See the `.gitignore` note on `.punt-labs/`. The dungeon plugin is prompt-only — most edits are direct work on `skills/dungeon/SKILL.md` and the adventure scripts. Sub-agents are useful for prompt review, narrative consistency, and game-mechanics correctness; missions are useful when a change touches the engine prompt, multiple scripts, and the README together.
 
 Within each row, the worker and evaluator must be distinct handles. Claude is the leader, never the evaluator.
 
