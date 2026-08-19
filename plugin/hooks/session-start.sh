@@ -6,21 +6,21 @@ SETTINGS="$HOME/.claude/settings.json"
 TOOL_PATTERN="mcp__plugin_dungeon_grimoire__"
 
 # ── Install MCP dependencies if missing ──────────────────────────────────
+# node_modules is not tracked in git, and the marketplace installs this
+# directory straight out of the repo, so this is the *only* place the
+# grimoire server's dependencies ever get installed. A failure here leaves
+# every game tool missing, so report it instead of dying quietly: the old
+# form sent npm's stderr to /dev/null and let `set -e` kill the hook on a
+# non-zero exit, which also skipped the permissions block below.
 MCP_DIR="$PLUGIN_ROOT/mcp"
-if [[ -d "$MCP_DIR" && -f "$MCP_DIR/package.json" && ! -d "$MCP_DIR/node_modules" ]]; then
-  if command -v npm &>/dev/null; then
-    (cd "$MCP_DIR" && npm install --production --quiet 2>/dev/null)
+if [[ -f "$MCP_DIR/package.json" && ! -d "$MCP_DIR/node_modules" ]]; then
+  if ! command -v npm &>/dev/null; then
+    MCP_SETUP_FAILED="npm was not found"
+  elif ! (cd "$MCP_DIR" && npm install --omit=dev --no-audit --no-fund --quiet) >&2; then
+    MCP_SETUP_FAILED="npm install failed (see the hook output above)"
+  else
     NPM_INSTALLED=true
   fi
-fi
-
-# ── Deploy /d shorthand if missing ───────────────────────────────────────
-COMMANDS_DIR="$HOME/.claude/commands"
-D_CMD="$COMMANDS_DIR/d.md"
-if [[ ! -f "$D_CMD" && -f "$PLUGIN_ROOT/commands/d.md" ]]; then
-  mkdir -p "$COMMANDS_DIR"
-  cp "$PLUGIN_ROOT/commands/d.md" "$D_CMD"
-  D_DEPLOYED=true
 fi
 
 # ── Allow MCP tools in user settings if not already allowed ──────────────
@@ -48,9 +48,15 @@ if command -v jq &>/dev/null && [[ -f "$SETTINGS" ]]; then
 fi
 
 # ── Notify Claude if anything was set up ─────────────────────────────────
-if [[ "${NPM_INSTALLED:-}" == "true" || "${D_DEPLOYED:-}" == "true" || "${TOOLS_ALLOWED:-}" == "true" ]]; then
-  MSG="Dungeon plugin first-run setup complete."
-  [[ "${D_DEPLOYED:-}" == "true" ]] && MSG="$MSG The /d shorthand was deployed — it will activate after restart."
+# MSG is assembled from fixed strings only. It is interpolated into an
+# unescaped heredoc, so anything carrying a quote, a newline, or a backslash
+# would produce invalid JSON — npm's output is deliberately kept out of it.
+if [[ -n "${MCP_SETUP_FAILED:-}" || "${NPM_INSTALLED:-}" == "true" || "${TOOLS_ALLOWED:-}" == "true" ]]; then
+  if [[ -n "${MCP_SETUP_FAILED:-}" ]]; then
+    MSG="Dungeon plugin setup could not install the grimoire MCP server dependencies: ${MCP_SETUP_FAILED}. Game tools will be unavailable until Node.js 20+ and npm are installed and Claude Code is restarted."
+  else
+    MSG="Dungeon plugin first-run setup complete."
+  fi
   [[ "${TOOLS_ALLOWED:-}" == "true" ]] && MSG="$MSG Game tools were auto-allowed in permissions."
   cat <<ENDJSON
 {
