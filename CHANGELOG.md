@@ -15,8 +15,8 @@ All notable changes to this project will be documented in this file.
   install stops fetching whole directories: `docs/` (including a 239 KB
   `architecture.pdf`), `.github/`, `.beads/`, `.lux/`, `.vox/`, and the release
   tooling in the repo-root `scripts/` are all absent. Measured against this
-  branch: 30 files / 540 KB of working tree versus 46 files / 976 KB for an
-  equivalent shallow full clone, with `plugin/` itself only 172 KB. The
+  branch on GitHub: 30 files / ~540 KB of working tree versus 46 files / ~980 KB
+  for an equivalent shallow full clone, with `plugin/` itself only ~175 KB. The
   adventures and `assets/` had to move too,
   and are part of the shipped surface rather than repo data, because
   `mcp/server.mjs` resolves them relative to its own location — leaving either
