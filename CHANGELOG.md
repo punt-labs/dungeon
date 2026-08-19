@@ -15,8 +15,9 @@ All notable changes to this project will be documented in this file.
   install stops fetching whole directories: `docs/` (including a 239 KB
   `architecture.pdf`), `.github/`, `.beads/`, `.lux/`, `.vox/`, and the release
   tooling in the repo-root `scripts/` are all absent. Measured against this
-  branch: 20 files / 208 KB of working tree versus 34 files / 640 KB for an
-  equivalent shallow full clone. The adventures and `assets/` had to move too,
+  branch: 30 files / 540 KB of working tree versus 46 files / 976 KB for an
+  equivalent shallow full clone, with `plugin/` itself only 172 KB. The
+  adventures and `assets/` had to move too,
   and are part of the shipped surface rather than repo data, because
   `mcp/server.mjs` resolves them relative to its own location — leaving either
   behind would have left `quest_board`, `unfurl_scroll`, and `scry` reading
@@ -51,6 +52,15 @@ All notable changes to this project will be documented in this file.
   E404 on stderr, JSON naming the failure, permissions applied. `--production`
   is also replaced with its supported spelling `--omit=dev`, and
   `--no-audit --no-fund` drops two network round-trips from first-run latency.
+- **The MCP server announced the wrong version.** `server.mjs` hardcoded
+  `version: "0.1.2"` in its `serverInfo`, so every client was told 0.1.2 while
+  the plugin shipped as 0.1.6. It now reads the version from
+  `plugin/.claude-plugin/plugin.json`, which the `plugin/` move makes a
+  guaranteed sibling and which is the one file a release bumps. If the manifest
+  is unreadable the server warns on stderr and reports `0.0.0` rather than
+  refusing to start — verified by moving the manifest aside: the warning
+  appeared on stderr, `serverInfo.version` was `0.0.0`, and all six tools still
+  worked.
 - **`markdownlint` no longer lints `.tmp/`.** `.tmp/` is gitignored scratch, so
   CI never saw it, but a local `npx markdownlint-cli2 "**/*.md"` did — a scratch
   file or a throwaway clone under `.tmp/` would fail the gate for reasons that
