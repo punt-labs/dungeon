@@ -92,6 +92,20 @@ All notable changes to this project will be documented in this file.
   refusing to start — verified by moving the manifest aside: the warning
   appeared on stderr, `serverInfo.version` was `0.0.0`, and all six tools still
   worked.
+- **A release could silently ship with the `-dev` command surface intact.**
+  `release-plugin.sh` ran `find "$COMMANDS_DIR" ... 2>/dev/null || true` inside a
+  process substitution, which is silent twice over: `set -e` does not inspect a
+  process substitution's exit status, and the redirect hid find's message. A
+  wrong `COMMANDS_DIR` — a typo, or the `plugin/` move having been done only
+  halfway — was therefore indistinguishable from "no `-dev` commands to strip",
+  and the release completed reporting success. The directory's absence is now
+  announced, and find writes to a regular file so it is a simple command that
+  `set -e` does police, meaning a genuine I/O error aborts the release instead of
+  reading as an empty result. Exercised on three throwaway repos: no
+  `plugin/commands` at all (dungeon's own case — Note printed, name swapped), a
+  plugin that does have `-dev` commands (stripped), and the half-moved
+  regression (Note printed, and the still-tracked `-dev` file is now attributable
+  instead of mysterious).
 - **`markdownlint` no longer lints `.tmp/`.** `.tmp/` is gitignored scratch, so
   CI never saw it, but a local `npx markdownlint-cli2 "**/*.md"` did — a scratch
   file or a throwaway clone under `.tmp/` would fail the gate for reasons that

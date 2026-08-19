@@ -1204,11 +1204,27 @@ new infrastructure.
 
 ### Trade-off: Cone Mode Still Ships the Repo Root
 
-`sparse-checkout --cone` excludes directories, not files. The files sitting in
-the repo root — `DESIGN.md`, `prfaq.pdf`, `prfaq.tex`, `playtest-1.md`,
-`README.md`, `CLAUDE.md`, `AGENTS.md`, `install.sh` — still travel with an
-install. Shrinking that remainder means moving root documents into a
-subdirectory, which this change does not attempt.
+`sparse-checkout --cone` excludes directories, not files, so every tracked
+repo-root file travels with an install. Measured: **324 KB of root files versus
+112 KB under `plugin/`** — the plugin surface is 26% of the tracked payload and
+the root is 74% of it. There are no stray binaries or build artifacts; the weight
+is documents, and three of them dominate:
+
+| Root file | Size | Share of root weight |
+|-----------|-----:|---------------------:|
+| `prfaq.pdf` | 170.5 KB | 53% |
+| `DESIGN.md` | 58.9 KB | 18% |
+| `prfaq.tex` | 38.9 KB | 12% |
+
+Moving `prfaq.{pdf,tex,bib}` and `playtest-1.md` into `docs/` — where
+`architecture.tex`/`architecture.pdf` already live, so it would be consistent
+with the existing structure rather than a new convention — would cut the install
+payload roughly in half. It is not done here because the PR/FAQ's location at the
+repo root is an org-wide convention (referenced by this repo's `CLAUDE.md`, the
+README's Working Backwards badge, and the root-anchored `prfaq.*` rules in
+`.gitignore`), and relocating it in one repo would desync the fleet.
+`DESIGN.md`, `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and `AGENTS.md` must stay
+at the root regardless. **Open — decide fleet-wide, not per repo.**
 
 Two of those root files are internal working config rather than documents, and
 are the same category #62 addressed when it removed the `.punt-labs/ethos`
