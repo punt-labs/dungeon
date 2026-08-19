@@ -10,7 +10,7 @@ A text adventure engine for [Claude Code](https://claude.ai/code). Claude is the
 
 ## How It Works
 
-The entire game engine is a single markdown file (`skills/dungeon/SKILL.md`) containing instructions that Claude follows. Adventure scripts are structured markdown files in `scripts/`. Game state is persisted as YAML frontmatter in `.claude/dungeon.local.md`.
+The entire game engine is a single markdown file (`plugin/skills/dungeon/SKILL.md`) containing instructions that Claude follows. Adventure scripts are structured markdown files in `plugin/scripts/`. Game state is persisted as YAML frontmatter in `.claude/dungeon.local.md`.
 
 ```
 Player types: /dungeon attack the goblin
@@ -89,19 +89,35 @@ Each tier adds a runtime dependency but unlocks gameplay that is structurally im
 
 ## Project Structure
 
+Everything the plugin ships lives under `plugin/`, and nothing else does. The
+marketplace installs that one directory with Claude Code's `git-subdir` source,
+so an install never fetches this repo's docs, PR/FAQ sources, or release
+tooling.
+
 ```
-.claude-plugin/
-  plugin.json              Plugin manifest
-skills/
-  dungeon/SKILL.md         Game engine (Claude's instructions)
-scripts/
-  classic-fantasy-dungeon.md   ~10 scenes, fantasy dungeon crawl
-  unix-catacombs.md            ~8 scenes, UNIX-themed meta adventure
-  haunted-library.md           ~8 scenes, stealth/horror
-assets/
-  ascii-art.md             Shared ASCII art (title, game over, victory)
+plugin/                    Everything a marketplace install fetches
+  .claude-plugin/
+    plugin.json            Plugin manifest (declares the grimoire MCP server)
+  skills/
+    dungeon/SKILL.md       Game engine (Claude's instructions)
+  scripts/
+    classic-fantasy-dungeon.md   ~10 scenes, fantasy dungeon crawl
+    unix-catacombs.md            ~8 scenes, UNIX-themed meta adventure
+    haunted-library.md           ~8 scenes, stealth/horror
+  assets/
+    ascii-art.md           Shared ASCII art (title, game over, victory)
+  hooks/                   SessionStart setup + MCP output suppression
+  mcp/server.mjs           Node MCP server; game-state I/O only, no game logic
 install.sh                 Installer
+scripts/                   Release tooling (not shipped)
 ```
+
+`${CLAUDE_PLUGIN_ROOT}` is `plugin/`, and the surface never reaches outside
+itself: `mcp/server.mjs` resolves the adventure scripts and assets relative to
+its own location, and the hook scripts depend only on `$HOME`, `npm`, and `jq`.
+Note the two `scripts/` directories — `plugin/scripts/` holds adventures,
+because that is where the MCP server's `unfurl_scroll` and `quest_board` tools
+read them from; the repo-root `scripts/` holds the release shell scripts.
 
 ## License
 

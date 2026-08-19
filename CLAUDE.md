@@ -1,6 +1,8 @@
 # Agent Instructions
 
-This is a prompt-only Claude Code plugin — no application code, no runtime. The game engine is a skill prompt (`skills/dungeon/SKILL.md`) and adventure scripts are structured markdown files in `scripts/`.
+This is a prompt-only Claude Code plugin — no application code, no runtime beyond a small Node MCP server for game-state I/O. The game engine is a skill prompt (`plugin/skills/dungeon/SKILL.md`) and adventure scripts are structured markdown files in `plugin/scripts/`.
+
+Everything the plugin ships lives under `plugin/`, and nothing else does. The marketplace installs that directory with Claude Code's `git-subdir` source, so `${CLAUDE_PLUGIN_ROOT}` is `plugin/` and the surface must never reference a file outside itself — that file will not exist on an installed plugin. The repo-root `scripts/` is release tooling and is not shipped; adventures live in `plugin/scripts/` because that is where `plugin/mcp/server.mjs` reads them from.
 
 This project follows [Punt Labs standards](https://github.com/punt-labs/punt-kit).
 
@@ -16,15 +18,17 @@ Use `.tmp/` at the project root for scratch and temporary files — never `/tmp`
 
 ```bash
 npx markdownlint-cli2 "**/*.md" "#node_modules"
+shellcheck plugin/hooks/*.sh install.sh scripts/*.sh
 ```
 
-All markdown must pass markdownlint before commit. CI enforces this via `docs.yml`.
+All markdown must pass markdownlint and all shell must pass shellcheck before commit. CI enforces both via `docs.yml`.
 
 ## What NOT to Change Without Care
 
-- **`skills/dungeon/SKILL.md`** — the game engine. Changes affect all gameplay. Test by running `/dungeon` after any edit.
-- **`scripts/*.md`** — adventure scripts. Each is a self-contained game world. Follow the existing structure (YAML frontmatter + rooms + encounters).
-- **`mcp/`** — MCP tools for game state persistence. Changes affect save/load behavior.
+- **`plugin/skills/dungeon/SKILL.md`** — the game engine. Changes affect all gameplay. Test by running `/dungeon` after any edit.
+- **`plugin/scripts/*.md`** — adventure scripts. Each is a self-contained game world. Follow the existing structure (YAML frontmatter + rooms + encounters).
+- **`plugin/mcp/`** — MCP tools for game state persistence. Changes affect save/load behavior.
+- **`plugin/` layout** — moving anything out of `plugin/` removes it from every install. Moving anything in adds it to every install.
 
 ## Documentation Discipline
 
@@ -45,7 +49,7 @@ Update `prfaq.tex` when the change shifts product direction or validates/invalid
 - [ ] **CHANGELOG entry** included in the PR diff under `## [Unreleased]` (PR is not merge-ready without it if behavior changed)
 - [ ] **README updated** if user-facing behavior changed (commands, mechanics, flags, defaults, config)
 - [ ] **PR/FAQ updated** if the change shifts product direction or validates/invalidates a risk assumption
-- [ ] **Quality gates pass** — `npx markdownlint-cli2 "**/*.md" "#node_modules"`
+- [ ] **Quality gates pass** — `npx markdownlint-cli2 "**/*.md" "#node_modules"` and `shellcheck plugin/hooks/*.sh install.sh scripts/*.sh`
 
 ### Code Review Flow
 
@@ -66,14 +70,14 @@ This project uses **beads** (`bd`) for issue tracking. If an issue discovered he
 
 ## Ethos & Delegation
 
-Identity: `agent: claude`, resolved from the global `~/.punt-labs/ethos/` at runtime. This repo tracks **no** ethos config or `.punt-labs/` content: Claude Code clones the plugin onto every consumer's machine (with submodules), so an in-repo ethos submodule broke keyless installs and shipped internal identity data to strangers. See the `.gitignore` note on `.punt-labs/`. The dungeon plugin is prompt-only — most edits are direct work on `skills/dungeon/SKILL.md` and the adventure scripts. Sub-agents are useful for prompt review, narrative consistency, and game-mechanics correctness; missions are useful when a change touches the engine prompt, multiple scripts, and the README together.
+Identity: `agent: claude`, resolved from the global `~/.punt-labs/ethos/` at runtime. This repo tracks **no** ethos config or `.punt-labs/` content: Claude Code clones the plugin onto every consumer's machine (with submodules), so an in-repo ethos submodule broke keyless installs and shipped internal identity data to strangers. See the `.gitignore` note on `.punt-labs/`. The dungeon plugin is prompt-only — most edits are direct work on `plugin/skills/dungeon/SKILL.md` and the adventure scripts. Sub-agents are useful for prompt review, narrative consistency, and game-mechanics correctness; missions are useful when a change touches the engine prompt, multiple scripts, and the README together.
 
 Within each row, the worker and evaluator must be distinct handles. Claude is the leader, never the evaluator.
 
 | Task type | Worker | Evaluator |
 |-----------|--------|-----------|
 | Skill prompt (SKILL.md) edits | `claude` (leader, direct) | `mdm` (McIlroy) — pipeline composition, prompt-as-tool design |
-| Adventure script (`scripts/*.md`) — new world | `claude` (leader, direct) | `gax` (Gygax — game-team) for balance, narrative shape |
+| Adventure script (`plugin/scripts/*.md`) — new world | `claude` (leader, direct) | `gax` (Gygax — game-team) for balance, narrative shape |
 | Adventure script — voice / tone consistency | `claude` (leader, direct) | `archivist` or `cryptkeeper` (game-team, when available) |
 | Game mechanic / rule change | `claude` (leader) | `gax` then `mdm` — rule design then prompt clarity |
 | MCP tool (state persistence) | `bwk` or `rmh` depending on language | `mdm` (CLI sensibility) or `djb` (input validation) |
