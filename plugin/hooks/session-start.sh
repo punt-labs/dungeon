@@ -24,8 +24,14 @@ if [[ -f "$MCP_DIR/package.json" && ! -d "$MCP_DIR/node_modules" ]]; then
 fi
 
 # ── Allow MCP tools in user settings if not already allowed ──────────────
+# jq is a hard requirement of the shipped surface, not just of this block:
+# suppress-output.sh pipes every grimoire tool result through it, so without
+# jq the permission grant below never happens *and* the game's file I/O stops
+# being collapsed in the UI. That used to be two silent no-ops.
 OLD_PATTERN="mcp__plugin_dungeon_game__"
-if command -v jq &>/dev/null && [[ -f "$SETTINGS" ]]; then
+if ! command -v jq &>/dev/null; then
+  JQ_MISSING=true
+elif [[ -f "$SETTINGS" ]]; then
   NEEDS_UPDATE=false
 
   # Remove stale permission from old server name (game → grimoire)
@@ -51,12 +57,13 @@ fi
 # MSG is assembled from fixed strings only. It is interpolated into an
 # unescaped heredoc, so anything carrying a quote, a newline, or a backslash
 # would produce invalid JSON — npm's output is deliberately kept out of it.
-if [[ -n "${MCP_SETUP_FAILED:-}" || "${NPM_INSTALLED:-}" == "true" || "${TOOLS_ALLOWED:-}" == "true" ]]; then
+if [[ -n "${MCP_SETUP_FAILED:-}" || "${JQ_MISSING:-}" == "true" || "${NPM_INSTALLED:-}" == "true" || "${TOOLS_ALLOWED:-}" == "true" ]]; then
   if [[ -n "${MCP_SETUP_FAILED:-}" ]]; then
     MSG="Dungeon plugin setup could not install the grimoire MCP server dependencies: ${MCP_SETUP_FAILED}. Game tools will be unavailable until Node.js 20+ and npm are installed and Claude Code is restarted."
   else
     MSG="Dungeon plugin first-run setup complete."
   fi
+  [[ "${JQ_MISSING:-}" == "true" ]] && MSG="$MSG jq was not found, so game tools were not auto-allowed and their file I/O will not be collapsed in the UI — install jq and restart Claude Code."
   [[ "${TOOLS_ALLOWED:-}" == "true" ]] && MSG="$MSG Game tools were auto-allowed in permissions."
   cat <<ENDJSON
 {

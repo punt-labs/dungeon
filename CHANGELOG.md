@@ -52,6 +52,16 @@ All notable changes to this project will be documented in this file.
   E404 on stderr, JSON naming the failure, permissions applied. `--production`
   is also replaced with its supported spelling `--omit=dev`, and
   `--no-audit --no-fund` drops two network round-trips from first-run latency.
+- **A missing `jq` was two silent no-ops.** `jq` is a hard requirement of the
+  shipped surface, not just of the SessionStart hook's permissions block:
+  `suppress-output.sh` pipes every grimoire tool result through it, so without
+  `jq` the game's file I/O stops being collapsed in the UI *and* the MCP tools
+  are never auto-allowed — both without a word to anyone. The hook now
+  distinguishes "jq absent" from "settings.json absent" and reports the former.
+  Verified with a `PATH` carrying `npm` but not `jq`: exit 0, valid JSON naming
+  the consequence, and the four cases that must not regress (first run, steady
+  state, stale `mcp__plugin_dungeon_game__` permission migration, absent
+  `settings.json`) all unchanged.
 - **The MCP server announced the wrong version.** `server.mjs` hardcoded
   `version: "0.1.2"` in its `serverInfo`, so every client was told 0.1.2 while
   the plugin shipped as 0.1.6. It now reads the version from

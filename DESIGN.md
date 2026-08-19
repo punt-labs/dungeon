@@ -1209,3 +1209,21 @@ the repo root — `DESIGN.md`, `prfaq.pdf`, `prfaq.tex`, `playtest-1.md`,
 `README.md`, `CLAUDE.md`, `AGENTS.md`, `install.sh` — still travel with an
 install. Shrinking that remainder means moving root documents into a
 subdirectory, which this change does not attempt.
+
+Two of those root files are internal working config rather than documents, and
+are the same category #62 addressed when it removed the `.punt-labs/ethos`
+submodule for "shipping internal identity data to strangers":
+
+- **`.biff`** — the biff team roster: contributor handles, the NATS relay URL,
+  and the org name. No credentials, no use to a player.
+- **`.envrc`** — the repo's direnv environment, including the secret-store
+  lookups (`pass show`, `security find-generic-password`) it uses to populate
+  tokens. No secrets are stored in it, but it is an executable file that a
+  player's direnv could be prompted to allow if they ever `cd` into the plugin
+  cache.
+
+Neither can simply be deleted: contributors need both at the repo root, and
+`.envrc` is maintained across every Punt Labs repo by a shared rollout script.
+Excluding them from an install means either gitignoring them (losing the shared
+per-repo config) or getting a file-level exclusion into the marketplace source
+(which cone mode does not offer). **Open — decide before the next release.**
