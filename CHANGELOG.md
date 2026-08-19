@@ -48,10 +48,22 @@ All notable changes to this project will be documented in this file.
   at `[]` — the permissions block never ran either. The install's outcome is now
   branched on explicitly (npm missing and npm failing are distinguished), npm's
   output goes to stderr where the hook log shows it, and the failure is reported
-  to the model as `additionalContext`. Same case after the fix: exit 0, npm's
-  E404 on stderr, JSON naming the failure, permissions applied. `--production`
-  is also replaced with its supported spelling `--omit=dev`, and
-  `--no-audit --no-fund` drops two network round-trips from first-run latency.
+  to the model as `additionalContext` with a remedy that matches the actual
+  failure. Same case after the fix: exit 0, npm's E404 on stderr, JSON naming the
+  failure, permissions applied, and the *next* session reports it again rather
+  than falling silent. `--production` is also replaced with its supported
+  spelling `--omit=dev`, and `--no-audit --no-fund` drops two network
+  round-trips from first-run latency.
+- **A half-installed dependency tree was never retried.** The readiness test was
+  `[[ -d node_modules ]]`, and a directory is not a success signal: an install
+  interrupted partway — Ctrl-C, a killed session, a full disk — leaves the
+  directory behind with unmet dependencies, so every later session read it as
+  done, skipped the install, skipped the error report, and left the player with
+  broken game tools permanently. Demonstrated by deleting one package from a
+  healthy tree: `node_modules` still present, `npm ls` exits 1 naming the missing
+  dependency. The test is now `npm ls --omit=dev` (about 160 ms per session
+  start), so the same case self-heals — observed re-installing the one missing
+  package and reporting success. Found by Cursor Bugbot on #64.
 - **A missing `jq` was two silent no-ops.** `jq` is a hard requirement of the
   shipped surface, not just of the SessionStart hook's permissions block:
   `suppress-output.sh` pipes every grimoire tool result through it, so without
