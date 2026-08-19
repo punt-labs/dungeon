@@ -176,7 +176,7 @@ docs/*.toc
 # Local-only files (machine-specific, per-user)
 
 # MCP server dependencies
-mcp/node_modules/
+plugin/mcp/node_modules/
 
 # Scratch/temp directory (TMPDIR set via .envrc)
 
