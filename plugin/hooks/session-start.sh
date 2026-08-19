@@ -24,8 +24,16 @@ MCP_DIR="$PLUGIN_ROOT/mcp"
 mcp_deps_ok() { (cd "$MCP_DIR" && npm ls --omit=dev) >/dev/null 2>&1; }
 if [[ -f "$MCP_DIR/package.json" ]]; then
   if ! command -v npm &>/dev/null; then
-    MCP_SETUP_FAILED="npm was not found"
-    MCP_SETUP_REMEDY="Install Node.js 20+ and restart Claude Code."
+    # `npm ls` is the readiness check, so without npm there is no authoritative
+    # answer — and nothing could be done about a bad tree anyway. Only complain
+    # when the tree is plainly absent: the server is launched with `node`, so a
+    # complete tree runs perfectly well on a machine that has node but not npm,
+    # and claiming "game tools will not work" there would be a false alarm
+    # every session.
+    if [[ ! -d "$MCP_DIR/node_modules" ]]; then
+      MCP_SETUP_FAILED="npm was not found and dependencies are not installed"
+      MCP_SETUP_REMEDY="Install Node.js 20+ with npm and restart Claude Code."
+    fi
   elif ! mcp_deps_ok; then
     if ! (cd "$MCP_DIR" && npm install --omit=dev --no-audit --no-fund --quiet) >&2; then
       MCP_SETUP_FAILED="npm install failed"

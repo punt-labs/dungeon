@@ -64,6 +64,15 @@ All notable changes to this project will be documented in this file.
   dependency. The test is now `npm ls --omit=dev` (about 160 ms per session
   start), so the same case self-heals — observed re-installing the one missing
   package and reporting success. Found by Cursor Bugbot on #64.
+- **A machine with `node` but no `npm` got a false alarm every session.** Making
+  the readiness check unconditional meant a missing `npm` was reported as "game
+  tools will not work" even when the dependency tree was already complete — and
+  the grimoire server is launched with `node`, so it works fine there. Verified:
+  with all 93 packages present and `npm` removed from `PATH` entirely, all six
+  tools serve normally over stdio. Without `npm` there is no authoritative
+  readiness answer and nothing to be done about a bad tree anyway, so that
+  branch now reports only when the tree is plainly absent. Found by Cursor
+  Bugbot on #64.
 - **A missing `jq` was two silent no-ops.** `jq` is a hard requirement of the
   shipped surface, not just of the SessionStart hook's permissions block:
   `suppress-output.sh` pipes every grimoire tool result through it, so without
