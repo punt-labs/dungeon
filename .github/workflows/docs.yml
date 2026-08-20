@@ -19,3 +19,14 @@ jobs:
         with:
           globs: "**/*.md"
 
+  shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      # shellcheck is preinstalled on the GitHub-hosted ubuntu runners.
+      # plugin/hooks/*.sh ships to every player, so a lint failure there is a
+      # defect on a stranger's machine, not just in this repo.
+      - name: ShellCheck
+        run: shellcheck plugin/hooks/*.sh install.sh scripts/*.sh
+

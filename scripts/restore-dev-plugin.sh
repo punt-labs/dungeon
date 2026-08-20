@@ -4,7 +4,7 @@ set -euo pipefail
 # Restore dev plugin state on main after a release tag.
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PLUGIN_JSON=".claude-plugin/plugin.json"
+PLUGIN_JSON="plugin/.claude-plugin/plugin.json"
 
 # Require a clean working tree so we don't overwrite local changes.
 if [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
@@ -29,10 +29,10 @@ fi
 # Restore plugin.json from the specified commit
 git -C "$REPO_ROOT" checkout "$RESTORE_REF" -- "$PLUGIN_JSON"
 
-# Restore commands/ only if it exists at the restore ref
-if [ -n "$(git -C "$REPO_ROOT" ls-tree "$RESTORE_REF" -- commands/)" ]; then
-  git -C "$REPO_ROOT" checkout "$RESTORE_REF" -- commands/
-  git -C "$REPO_ROOT" add commands/
+# Restore plugin/commands/ only if it exists at the restore ref
+if [ -n "$(git -C "$REPO_ROOT" ls-tree "$RESTORE_REF" -- plugin/commands/)" ]; then
+  git -C "$REPO_ROOT" checkout "$RESTORE_REF" -- plugin/commands/
+  git -C "$REPO_ROOT" add plugin/commands/
 fi
 
 git -C "$REPO_ROOT" add "$PLUGIN_JSON"

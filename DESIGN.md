@@ -1121,3 +1121,125 @@ The game takes mechanical inspiration from two 1981 classics:
 Both games define what a dungeon crawl IS for players of a certain era. Choosing them
 as reference points gives the design team a shared vocabulary ("this room should feel
 Zork-ish") and a known quality bar. Neither is being reproduced — they are taste references.
+
+---
+
+## DES-023: Shippable Surface Isolated Under `plugin/`
+
+**Date:** 2026-08-19
+**Status:** SETTLED
+**Topic:** What a marketplace install fetches
+
+### The Problem
+
+DES-005 settled installation as marketplace registration plus a git clone, and
+the marketplace entry used the `url` source — a clone of the whole repository.
+Every player therefore received the full working tree: `DESIGN.md`, `docs/`,
+`prfaq.pdf` and its LaTeX sources, `playtest-1.md`, the release shell scripts,
+`.beads/`, `.github/`, `.envrc`, and this repo's `CLAUDE.md` and `AGENTS.md`.
+None of it is used at play time. The `.punt-labs/` removal in #62 was the same
+class of problem discovered the hard way: an in-repo submodule with an SSH URL
+aborted keyless `--recurse-submodules` clones outright, because a marketplace
+install is a clone of *this* repo onto a stranger's machine.
+
+### Design
+
+Everything the plugin ships moves under one directory, `plugin/`, and nothing
+else does:
+
+| Path | Contents |
+|------|----------|
+| `plugin/.claude-plugin/plugin.json` | Manifest; declares the `grimoire` MCP server as `node ${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs`. |
+| `plugin/skills/dungeon/SKILL.md` | The game engine prompt (DES-002). |
+| `plugin/scripts/*.md` | The three bundled adventures (DES-006). |
+| `plugin/assets/ascii-art.md` | Shared ASCII art. |
+| `plugin/hooks/` | `hooks.json`, the SessionStart setup hook, the PostToolUse output-suppression hook. |
+| `plugin/mcp/` | The Node MCP server (DES-008) and its `package.json`/`package-lock.json`. |
+
+The marketplace entry then uses Claude Code's `git-subdir` source
+(`"source": "git-subdir"`, `"path": "plugin"`), which is a blobless partial
+clone plus `git sparse-checkout set --cone plugin`. Whole directories outside
+`plugin/` are never fetched.
+
+### Why the Adventures and Assets Had to Move Too
+
+`mcp/server.mjs` computes its own plugin root — `join(dirname(import.meta.url
+path), "..")` — and reads `scripts/` and `assets/` from there. That is the
+DES-008 "Path Resolution" rule working as designed, and it is exactly why the
+game content is part of the shipped surface rather than repo data: leave either
+directory at the repo root and `quest_board`, `unfurl_scroll`, and `scry` all
+resolve to paths a sparse install never materializes. The consequence is two
+directories named `scripts/`: `plugin/scripts/` is adventures, the repo-root
+`scripts/` is release tooling. The alternative — renaming the shipped one to
+`plugin/adventures/` — was rejected as a second, independent change: it would
+edit the server, the skill prompt's vocabulary, and every doc that says
+"adventure script", for a cosmetic gain.
+
+### Consequence: The npm Install Is Now Load-Bearing
+
+`plugin/mcp/node_modules/` is untracked, and a `git-subdir` install
+materializes exactly what git tracks, so the SessionStart hook's `npm install`
+is the only path by which the grimoire server's dependencies ever reach a
+player's machine. It was previously written to discard npm's diagnostics and
+let `set -e` kill the hook on failure; that is now an explicit branch that
+reports the failure to the model. See the CHANGELOG entry for the reproduction.
+
+### The Invariant This Creates
+
+**The plugin surface must not reach outside itself at runtime.** A hook script
+or the MCP server may use `$HOME`, the *consumer's* `process.cwd()`, and
+anything under `plugin/`; it may not reference a file elsewhere in this repo,
+because that file will not exist on an installed plugin. `${CLAUDE_PLUGIN_ROOT}`
+is `plugin/`.
+
+### Rejected: Publishing a Release Tarball
+
+A tarball built by CI would give exact control over the shipped bytes, and
+would also let us vendor `node_modules` so first run needs no network. It was
+rejected because Claude Code's marketplace has no tarball source: `url` means
+"git clone this", so a tarball would need its own hosting, its own checksum
+story, and a release step that can fail independently of the tag.
+`git-subdir` gets most of the benefit with a two-line marketplace change and no
+new infrastructure.
+
+### Trade-off: Cone Mode Still Ships the Repo Root
+
+`sparse-checkout --cone` excludes directories, not files, so every tracked
+repo-root file travels with an install. Measured: **324 KB of root files versus
+112 KB under `plugin/`** — the plugin surface is 26% of the tracked payload and
+the root is 74% of it. There are no stray binaries or build artifacts; the weight
+is documents, and three of them dominate:
+
+| Root file | Size | Share of root weight |
+|-----------|-----:|---------------------:|
+| `prfaq.pdf` | 170.5 KB | 53% |
+| `DESIGN.md` | 58.9 KB | 18% |
+| `prfaq.tex` | 38.9 KB | 12% |
+
+Moving `prfaq.{pdf,tex,bib}` and `playtest-1.md` into `docs/` — where
+`architecture.tex`/`architecture.pdf` already live, so it would be consistent
+with the existing structure rather than a new convention — would cut the install
+payload roughly in half. It is not done here because the PR/FAQ's location at the
+repo root is an org-wide convention (referenced by this repo's `CLAUDE.md`, the
+README's Working Backwards badge, and the root-anchored `prfaq.*` rules in
+`.gitignore`), and relocating it in one repo would desync the fleet.
+`DESIGN.md`, `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and `AGENTS.md` must stay
+at the root regardless. **Open — decide fleet-wide, not per repo.**
+
+Two of those root files are internal working config rather than documents, and
+are the same category #62 addressed when it removed the `.punt-labs/ethos`
+submodule for "shipping internal identity data to strangers":
+
+- **`.biff`** — the biff team roster: contributor handles, the NATS relay URL,
+  and the org name. No credentials, no use to a player.
+- **`.envrc`** — the repo's direnv environment, including the secret-store
+  lookups (`pass show`, `security find-generic-password`) it uses to populate
+  tokens. No secrets are stored in it, but it is an executable file that a
+  player's direnv could be prompted to allow if they ever `cd` into the plugin
+  cache.
+
+Neither can simply be deleted: contributors need both at the repo root, and
+`.envrc` is maintained across every Punt Labs repo by a shared rollout script.
+Excluding them from an install means either gitignoring them (losing the shared
+per-repo config) or getting a file-level exclusion into the marketplace source
+(which cone mode does not offer). **Open — decide before the next release.**

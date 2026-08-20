@@ -2,6 +2,14 @@
 
 _Reviewed against punt-kit standards and public-website positioning. March 2026._
 
+> **Paths below are as of March 2026 and have since moved.** The shippable
+> surface now lives under `plugin/` (DES-023), so read `skills/`, `scripts/`,
+> `assets/`, `hooks/`, `mcp/`, and `.claude-plugin/` as `plugin/skills/`,
+> `plugin/scripts/`, and so on. `commands/d.md` no longer exists — the `/d`
+> shorthand was removed in #39, and the hook block that deployed it was removed
+> with the DES-023 move. The findings themselves stand as recorded; this note
+> exists so nobody acts on a stale path.
+
 ---
 
 ## What the Project Is

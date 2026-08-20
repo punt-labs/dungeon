@@ -350,7 +350,7 @@ movement and basic narration.
 - `internal/narrator/llm.go` — `LLMNarrator` (thin):
   - Calls Claude with event result + adventure context
   - Returns narration string
-- `skills/dungeon/SKILL.md` — rewritten for DM role:
+- `plugin/skills/dungeon/SKILL.md` — rewritten for DM role:
   - Narration instructions, not game rules
   - Handles room descriptions, item examine responses
 - `cmd/dungeon/dm.go` — `dungeon dm` subcommand
