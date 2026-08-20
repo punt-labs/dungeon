@@ -21,7 +21,19 @@ const stateFile = join(process.cwd(), ".claude", "dungeon.local.md");
 // as 0.1.6. The manifest is the one place a release bumps.
 let version = "0.0.0";
 try {
-  version = JSON.parse(await readFile(manifestFile, "utf-8")).version ?? version;
+  // A manifest that parses but declares no usable `version` reaches the
+  // fallback without throwing, so the catch below never sees it: the previous
+  // `?? version` was silent on exactly that path, and it also let a null or a
+  // non-string through as the reported version. Warn instead, or the server
+  // claims 0.0.0 with no clue why.
+  const declared = JSON.parse(await readFile(manifestFile, "utf-8")).version;
+  if (typeof declared === "string" && declared !== "") {
+    version = declared;
+  } else {
+    process.stderr.write(
+      `dungeon: ${manifestFile} declares no usable version (${JSON.stringify(declared)}); reporting ${version}\n`
+    );
+  }
 } catch (err) {
   process.stderr.write(`dungeon: cannot read version from ${manifestFile}: ${err.message}\n`);
 }
