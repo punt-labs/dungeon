@@ -89,9 +89,40 @@ All notable changes to this project will be documented in this file.
   `plugin/.claude-plugin/plugin.json`, which the `plugin/` move makes a
   guaranteed sibling and which is the one file a release bumps. If the manifest
   is unreadable the server warns on stderr and reports `0.0.0` rather than
-  refusing to start — verified by moving the manifest aside: the warning
-  appeared on stderr, `serverInfo.version` was `0.0.0`, and all six tools still
-  worked.
+  refusing to start. A manifest that *parses* but declares no usable `version`
+  needs its own warning, because that path reaches the fallback without throwing
+  and the `catch` never sees it — and the obvious `?? version` would have
+  reported a `null` or a numeric `16` verbatim as the server version. Only a
+  non-empty string is accepted now. Seven manifest states were exercised, each
+  with its own diagnostic and all six tools serving throughout: version present,
+  no `version` key, `null`, empty string, a number, a file that is not valid
+  JSON, and a missing file.
+- **The output-suppression hook could hand the model a fabricated game state.**
+  `suppress-output.sh` read `.tool_response[0].text` with `jq -r`, which renders
+  a missing path as the literal text `null` and prints nothing when the shape
+  makes indexing an error — neither distinguishable from real content by looking
+  at the result. So `tool_response` of `null`, of `[]`, or of an element without
+  `.text` all published the four-character string `"null"` to the model as
+  `additionalContext`, and a FastMCP-shaped `{"result": ...}` object (the form
+  this file's own comment anticipates) published `""`; in every case the panel
+  summary still read "state recalled". A recalled save file that reads `null` is
+  worse than an unsuppressed one, so the status of that `jq` is now load-bearing
+  (`-re`) and no override is emitted at all unless there is a real result to put
+  behind it — otherwise the default panel shows, the model receives the genuine
+  tool result, and a named diagnostic goes to stderr distinguishing "no text at
+  that path" (status 1) from "not an MCP content array" (status 5). An empty text
+  is a jq success, so status alone does not catch it and it is now checked
+  separately: `quest_board` returns `""` when it finds no adventures, and a panel
+  reading "quests listed" over nothing is the same lie in miniature. The tool
+  name is read with `-re` too and checked *before* `tool_response` is probed,
+  against one authoritative suffix list, so an unrelated tool's response is never
+  indexed into. The script also gained `set -euo pipefail`, matching
+  `session-start.sh`, and every `echo "$INPUT"` is now `printf '%s'` — game state
+  is full of backslashes and `echo` is not required to leave them alone. Fourteen
+  shapes exercised: the eight response shapes, an empty text, a missing
+  `tool_name`, input that is not JSON, an unfurl with and without a name, the
+  legacy `mcp__plugin_dungeon_game__` server name (still suppressed), and a
+  backslash-heavy save file confirmed byte-identical through the hook with `od`.
 - **A release could silently ship with the `-dev` command surface intact.**
   `release-plugin.sh` ran `find "$COMMANDS_DIR" ... 2>/dev/null || true` inside a
   process substitution, which is silent twice over: `set -e` does not inspect a
@@ -111,7 +142,7 @@ All notable changes to this project will be documented in this file.
   file or a throwaway clone under `.tmp/` would fail the gate for reasons that
   have nothing to do with the change under test. Observed while verifying this
   branch: a sparse-checkout test clone took the local run from 17 files to 46.
-- **`shellcheck` now runs in CI.** The repo ships four shell scripts, two of
+- **`shellcheck` now runs in CI.** The repo ships five shell scripts, two of
   them inside the plugin surface, and CI linted only markdown. The gap had let a
   real defect sit in `scripts/release-plugin.sh`: an unquoted `${REPO_ROOT}`
   inside `${f#...}` (SC2295), where a glob character in the repo path would
