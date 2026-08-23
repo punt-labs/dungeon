@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- `.envrc` now exports `OPENROUTER_API_KEY` from macOS Keychain / Linux `pass`
+  when present, syncing with the canonical template in the workspace
+  meta-repo. `.envrc` sits at the repo root, so cone sparse-checkout
+  materializes it on every marketplace install.
+
 ## [0.1.7] - 2026-08-20
 
 ### Changed
