@@ -18,6 +18,11 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- Clear 7 open Dependabot alerts (2 high) in `plugin/mcp`: `zod` 3.25.76 →
+  4.6.7 (direct dependency, range `^3.25.0` → `^4.6.7`; the server only uses
+  `z.string().describe()`, unchanged in zod 4), `body-parser` 2.3.0 → 2.4.0,
+  `fast-uri` 3.1.8 → 3.1.9, `ip-address` 10.7.3 → 10.7.5.
+
 - Clear 6 open Dependabot alerts (1 critical, 3 high) by bumping
   `plugin/mcp/package-lock.json`: `@modelcontextprotocol/sdk` 1.30.0 → 1.32.2,
   `proxy-addr` 2.0.7 → 2.0.8.
