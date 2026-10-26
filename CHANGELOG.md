@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- Clear 6 open Dependabot alerts (1 critical, 3 high) by bumping
+  `plugin/mcp/package-lock.json`: `@modelcontextprotocol/sdk` 1.30.0 → 1.32.2,
+  `proxy-addr` 2.0.7 → 2.0.8.
+
 ### Changed
 
 - `.envrc` now exports `OPENROUTER_API_KEY` from macOS Keychain / Linux `pass`
