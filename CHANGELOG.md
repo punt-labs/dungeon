@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Removed
+
+- **SessionStart hook no longer edits `~/.claude/settings.json`.** It used to
+  add `mcp__plugin_dungeon_grimoire__*` to the global allow list and strip the
+  old `mcp__plugin_dungeon_game__*` entry, in every project, without asking.
+  Under the repo-level-only permission standard
+  ([punt-kit#396](https://github.com/punt-labs/punt-kit/pull/396)) the plugin
+  grants nothing: Claude Code asks before the first grimoire tool call, and
+  "don't ask again" stores the answer in that project's settings. Entries
+  earlier versions wrote globally are left alone; delete them by hand if you
+  want them gone.
+
 ### Security
 
 - Clear 6 open Dependabot alerts (1 critical, 3 high) by bumping

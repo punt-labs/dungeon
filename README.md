@@ -56,6 +56,8 @@ sh install.sh
 
 Then restart Claude Code and type `/dungeon` to start.
 
+The plugin grants itself no permissions. The first time the game saves or loads, Claude Code asks before running a grimoire tool; choose "don't ask again" to allow it in that project.
+
 ## Bundled Adventures
 
 | Script | Theme | Key Mechanic |
