@@ -53,16 +53,14 @@ Update `prfaq.tex` when the change shifts product direction or validates/invalid
 
 ### Code Review Flow
 
-Do **not** merge immediately after creating a PR. Expect **2–6 review cycles** before merging.
+PR review follows punt-kit/standards/pr-review.md: local review (qodo review + silent-failure-hunter + code-reviewer) before the PR, then Qodo and Bugbot once at open, at most two rounds, Copilot only on request.
 
 1. **Create PR** — push branch, open PR via `mcp__github__create_pull_request`. Prefer MCP GitHub tools over `gh` CLI.
-2. **Request Copilot review** — use `mcp__github__request_copilot_review`.
-3. **Poll for feedback** — `/loop 2m <poll prompt>`. The poll fetches `gh pr view`, `gh pr checks`, and the latest review comments. Do NOT use `gh pr checks --watch` — it returns one batch notification at the end, so a fast lint failure stays invisible until slow Bugbot completes. Bugbot can take 3+ minutes after CI; if it remains `in_progress` for more than 6 minutes after CI completes, treat it as clean and proceed.
-4. **Read all feedback** via MCP: `mcp__github__pull_request_read` with `get_reviews` and `get_review_comments`.
-5. **Take every comment seriously.** There is no such thing as "pre-existing" or "unrelated to this change" — if you can see it, you own it. If you disagree, explain why in a reply.
-6. **Fix and re-push** — commit fixes, push, re-run quality gates.
-7. **Repeat steps 3–6** until the latest review is **uneventful** — zero new comments, all checks green.
-8. **Merge only when the last review was clean** — use `mcp__github__merge_pull_request` (not `gh pr merge`).
+2. **Poll for feedback** — `/loop 3m <poll prompt>`. The poll fetches `gh pr view`, `gh pr checks`, and the latest review comments.
+3. **Read all feedback** via MCP: `mcp__github__pull_request_read` with `get_reviews` and `get_review_comments`.
+4. **Take every comment seriously.** There is no such thing as "pre-existing" or "unrelated to this change" — if you can see it, you own it. If you disagree, explain why in a reply.
+5. **Fix and re-push** — fix every finding in the PR, re-run quality gates, push once per round.
+6. **Merge** via `mcp__github__merge_pull_request` (not `gh pr merge`) once checks are green and no review thread is unresolved.
 
 ## Issue Tracking
 
