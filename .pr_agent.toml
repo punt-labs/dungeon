@@ -26,8 +26,8 @@ Do not grade PR titles, PR descriptions, commit messages, or CHANGELOG wording.
 Do not grade agent process rules from CLAUDE.md, AGENTS.md, or WORKFLOW.md (missions, beads, review cycles, delegation).
 """
 smart_router_extra_instructions = """
-High risk: plugin/mcp/server.mjs (save and load file I/O), plugin/hooks/*.sh, install.sh, scripts/release-plugin.sh, scripts/restore-dev-plugin.sh, and .github/workflows/.
-Low risk: docs-only diffs (*.md, docs/), plugin/scripts/*.md adventure content, prfaq.*, and playtest-1.md.
+High risk: plugin/skills/dungeon/SKILL.md (the game engine prompt; every player runs it), plugin/mcp/server.mjs (save and load file I/O), plugin/hooks/*.sh, install.sh, scripts/release-plugin.sh, scripts/restore-dev-plugin.sh, and .github/workflows/.
+Low risk: docs-only diffs (README.md, CHANGELOG.md, docs/), plugin/scripts/*.md adventure content, prfaq.*, and playtest-1.md.
 """
 
 [review_agent.comments_routing]
