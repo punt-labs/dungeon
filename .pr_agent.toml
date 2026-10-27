@@ -1,0 +1,36 @@
+# Qodo v2 review config from punt-kit pr_agent.toml template. One review on open, no per-push
+# re-review, only High findings inline (they become blocking threads).
+# Only bot-authored PRs are skipped; no title or label lets an author opt out.
+[github_app]
+ignore_bot_pr = true
+pr_commands = ["/agentic_describe", "/agentic_review"]
+handle_push_trigger = false
+
+[review_agent]
+enable_incremental_review = true
+# comments_routing below is authoritative; the threshold restates it (High only inline).
+inline_comments_severity_threshold = 3
+issues_user_guidelines = """
+dungeon is a prompt-only Claude Code plugin: a text-adventure engine written as a skill prompt (plugin/skills/dungeon/SKILL.md) and markdown adventure scripts (plugin/scripts/*.md), with a small Node MCP server (plugin/mcp/server.mjs) for game-state I/O and bash hooks and release scripts.
+Targets: macOS and Linux; everything shipped lives under plugin/.
+Report every finding in this one pass; do not hold findings back for a later pass.
+Flag only defects reachable by a real caller of the changed code: logic errors, None paths, security, API contract breaks, concurrency, resource leaks.
+Do not flag hypothetical environments (exotic env vars such as CDPATH or GIT_TRACE, control bytes in paths, tests run as root).
+Do not flag what CI enforces: markdownlint and shellcheck (plugin/hooks/*.sh, install.sh, scripts/*.sh) in the Docs workflow.
+Do not flag lines the PR did not change.
+Do not suggest moving files into or out of plugin/; the directory is the installed surface and plugin files must not reference paths outside it.
+"""
+compliance_user_guidelines = """
+Apply code rules only: correctness, typing, error handling, security, and the coding standards for the changed files.
+Do not grade PR titles, PR descriptions, commit messages, or CHANGELOG wording.
+Do not grade agent process rules from CLAUDE.md, AGENTS.md, or WORKFLOW.md (missions, beads, review cycles, delegation).
+"""
+smart_router_extra_instructions = """
+High risk: plugin/skills/dungeon/SKILL.md (the game engine prompt; every player runs it), plugin/mcp/server.mjs (save and load file I/O), plugin/hooks/*.sh, install.sh, scripts/release-plugin.sh, scripts/restore-dev-plugin.sh, and .github/workflows/.
+Low risk: docs-only diffs (README.md, CHANGELOG.md, docs/), plugin/scripts/*.md adventure content, prfaq.*, and playtest-1.md.
+"""
+
+[review_agent.comments_routing]
+action_required = "both"
+remediation_recommended = "summary"
+informational = "drop"
